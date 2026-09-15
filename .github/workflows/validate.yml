@@ -17,3 +17,5 @@ jobs:
       # clone can check the taxonomy with nothing but node.
       - run: node tools/validate.mjs
       - run: node test/coherence/run.mjs
+      - run: node test/m2/run.mjs
+      - run: node tools/build-data.mjs

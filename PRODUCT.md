@@ -653,6 +653,22 @@ talk to.
 `webRequest` is the heaviest ask and the one that determines the AMO review. §16.1 records
 the alternative if it is refused.
 
+**Mechanism decision (M2).** Entry substitution uses a blocking
+`webRequest.onBeforeRequest` listener filtered to `main_frame`, returning `{ redirectUrl }`.
+`declarativeNetRequest` was considered and cannot express it: the substituted values depend
+on state that does not exist until the navigation happens — whether a visit is active, and
+a seed generated at that moment — and DNR rules are precomputed patterns with literal
+values. Interior stripping *could* be a DNR `removeParams` rule and may move there later to
+shrink the blocking listener's scope; for now both phases go through the one handler so
+there is a single tested code path.
+
+**Exit check that cannot be done in Node.** Firefox MV3 runs the background as a
+non-persistent event page. The listener is registered synchronously at top level so
+Firefox can wake the page for it, but whether a *blocking* listener reliably answers after
+a suspension — or whether the first navigation after idle slips past while the page loads
+— has to be observed in a real profile. M2 is not closed until that is done with
+`about:debugging`, and §16.1's fallback applies if it fails.
+
 ### 10.3 The pipeline
 
 ```
@@ -843,6 +859,14 @@ blocking vs `declarativeNetRequest` redirect), visit registry, navigation handle
 guard, never-touch and strip-only enforcement. End-to-end: click a `utm`-laden link, watch
 a coherent false record arrive.
 
+*Status 2026-09-16:* built and tested in Node — `src/visits.js`, `src/guard.js`,
+`src/navigation.js`, `src/engine/domain.js`, a thin `src/background.js`, `manifest.json`,
+77 checks in `test/m2/`. The end-to-end property holds in the harness: a `utm`-laden
+`fbclid` link produces a redirect whose record lands in a named social channel, the
+redirect target is recognised and not rewritten twice, the next navigation on the site is
+stripped, and a fourth rewrite in one tab within ten seconds disables the guard for that
+tab. **Open:** the real-profile event-page check above.
+
 **M3 — Interior and links (week 5).** Content script, MutationObserver, stripping,
 cross-origin substitution with background bookkeeping, `ping` removal, performance
 benchmark in CI.
@@ -894,6 +918,15 @@ new arrivals. *Instrument locally during M3 and pick from observation, not from 
 properties span domains (`google.com` / `youtube.com`) and CDNs share them. A property map
 would be more accurate and is more maintenance. *Ship eTLD+1; revisit if breakage reports
 point at it.*
+
+*Resolved for M2:* there is no WebExtension API for eTLD+1, and the full Public Suffix List
+is ~230 KB and changes monthly. `src/engine/domain.js` carries a compact table of the
+multi-part suffixes that occur in ordinary browsing (`co.uk`, `com.au`, …) plus the
+private-section platforms where sibling subdomains are unrelated sites (`github.io`,
+`netlify.app`, …), and falls back to the last two labels. The failure mode of a missing
+entry is a visit scoped one label too wide — two unrelated sites sharing a persona — which
+is a plausibility cost, not a safety one; nothing in never-touch or strip-only depends on
+it. Bundling the real PSL remains the eventual answer.
 
 **16.4 Should interior stripping ever fabricate?** Currently no — interior is strip-only by
 design (§3.2). Sites with internal `?ref=` tracking arguably deserve the same treatment as

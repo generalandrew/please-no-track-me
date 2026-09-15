@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "please-no-track-me",
+  "version": "0.1.0",
+  "description": "Replaces tracking parameters with coherent false values when you enter a site, then strips them for the rest of the visit. Makes no network requests of its own.",
+  "permissions": ["storage", "webRequest", "webRequestBlocking", "alarms"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "scripts": ["src/background.js"],
+    "type": "module"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "please-no-track-me@generalandrew.github.io",
+      "strict_min_version": "115.0"
+    }
+  }
+}

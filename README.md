@@ -15,8 +15,25 @@ you then copy:  example.com/article
 
 Every value in the middle line is fabricated. None of it contradicts anything else in it.
 
-**Status: design complete, implementation not started.**
-The full product and technical specification is in **[PRODUCT.md](PRODUCT.md)**.
+**Status: M2 — entry substitution works in the test harness; not yet verified in a real
+Firefox profile.** The full product and technical specification is in
+**[PRODUCT.md](PRODUCT.md)**.
+
+## Try it
+
+```bash
+npm test          # taxonomy validation + coherence + M2 suites, no dependencies
+npm run build     # bundles data/*.json into src/data.js for the extension
+```
+
+Then in Firefox: `about:debugging` → *This Firefox* → *Load Temporary Add-on…* → pick
+`manifest.json`. Navigate to a URL carrying `utm_*` or `fbclid` and watch the address bar:
+the values you arrive with are not the ones you clicked. Navigate again within the same
+site and they are simply gone.
+
+What exists today is the navigation-time half (§7.3A): the blocking listener, the visit
+registry, the loop guard, and the substitution engine behind them. In-page link rewriting
+(M3), redirector unwrapping (M4) and the popup (M5) are not built yet.
 
 ## Why fabricate instead of strip
 

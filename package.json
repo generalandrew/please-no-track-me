@@ -5,9 +5,11 @@
   "type": "module",
   "description": "Firefox extension that replaces tracking parameters with coherent false values on site entry, then strips them for the rest of the visit",
   "scripts": {
+    "build": "node tools/build-data.mjs",
     "validate": "node tools/validate.mjs",
     "coherence": "node test/coherence/run.mjs",
-    "test": "node tools/validate.mjs && node test/coherence/run.mjs"
+    "m2": "node test/m2/run.mjs",
+    "test": "node tools/validate.mjs && node test/coherence/run.mjs && node test/m2/run.mjs"
   },
   "license": "MIT"
 }
