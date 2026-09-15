@@ -725,8 +725,20 @@ per element:  WeakSet check
 ```
 
 `all_frames: true`, `match_about_blank: true`. The observer ignores its own writes by
-comparing against the last value written. Settings and taxonomy are pushed from the
-background on change, so nothing is on the per-page hot path.
+comparing against the last value written.
+
+**Where the decision runs (M3 deviation).** This section originally had the taxonomy and
+settings *pushed* into every content script so nothing sat on the hot path. Built, the
+decision also depends on the visit registry — which domains are active, which pending
+seeds are reserved — and mirroring that into every frame is state synchronisation with all
+its failure modes. Instead the content script owns the DOM and nothing else: it batches the
+absolute hrefs it finds into **one message per batch** to the background, which runs the
+engine against the one registry and returns the rewrites. Per link, nothing crosses the
+boundary; per batch, one round trip. Measured (`test/m3/bench.mjs`, 2026-09-16): the engine
+decides 1,000 links in 5.6 ms and the rewriter's own DOM-side work costs 1.6 ms per 1,000
+elements, both inside F3.5's budget, with a fake DOM isolating our cost from layout's. The
+`ping` attribute is dropped locally without a round trip. If the background is asleep or
+unreachable, the batch is marked done and the links are left exactly as they were.
 
 **Known limitation.** Sites that rebuild the URL in a `mousedown`/`click` handler can
 re-add parameters after rewriting. Navigation-time interception (§7.3A) catches those on
@@ -870,6 +882,16 @@ tab. **Open:** the real-profile event-page check above.
 **M3 — Interior and links (week 5).** Content script, MutationObserver, stripping,
 cross-origin substitution with background bookkeeping, `ping` removal, performance
 benchmark in CI.
+
+*Status 2026-09-16:* built and tested — `src/links.js` (pure decisions),
+`src/content/rewriter.js` (a plain script the tests execute under a fake DOM via `vm`),
+`src/content/content.js`, the `links` handler and per-tab counts in `background.js`. 41
+checks in `test/m3/` and a benchmark gated in CI. A link to a domain with no visit is
+substituted with the persona its visit will use, and clicking it is recognised as the same
+story (`personaFor` reserves the seed; `markEmitted` records the string). Relative and
+query-only hrefs keep their form — only the query and fragment change. Restore and resume
+work, ready for M5's per-site pause. **Open:** the same real-profile check as M2, now also
+covering the content script on a live page.
 
 **M4 — Redirectors (week 6).** Unwrapping with all §8.4 gates, then entry substitution of
 the destination. Commercial-outcome wrappers catalogued as not unwrappable.

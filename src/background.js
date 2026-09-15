@@ -14,10 +14,13 @@ import { DATA } from './data.js';
 import { createRegistry } from './visits.js';
 import { createGuard } from './guard.js';
 import { handleNavigation, DEFAULT_SETTINGS } from './navigation.js';
+import { decideLinks } from './links.js';
 
 const registry = createRegistry({ data: DATA });
 const guard = createGuard();
 let settings = { ...DEFAULT_SETTINGS };
+// Per-tab link counts for the popup. Memory only; die with the tab (§8.6).
+const tabCounts = new Map();
 
 // Settings arrive asynchronously; until they do, the defaults apply. The defaults are
 // the conservative ones, so the window in which they apply is safe.
@@ -49,6 +52,7 @@ browser.webRequest.onBeforeRequest.addListener(
 browser.tabs.onRemoved.addListener((tabId) => {
   registry.detachTab(tabId);
   guard.forgetTab(tabId);
+  tabCounts.delete(tabId);
 });
 
 browser.alarms.create('sweep-visits', { periodInMinutes: 5 });
@@ -57,11 +61,25 @@ browser.alarms.onAlarm.addListener((alarm) => {
 });
 
 // The popup (M5) asks for this. Never includes seeds.
-browser.runtime.onMessage.addListener((msg) => {
+browser.runtime.onMessage.addListener((msg, sender) => {
+  // The content script's batch of absolute hrefs → what each should read as. One
+  // message per batch, decided against the one registry (§7.3B, §10.5).
+  if (msg?.type === 'links') {
+    const result = decideLinks(msg.pageUrl, msg.hrefs, { registry, data: DATA, settings });
+    const tabId = sender?.tab?.id;
+    if (Number.isInteger(tabId)) {
+      const c = tabCounts.get(tabId) ?? { stripped: 0, substituted: 0 };
+      c.stripped += result.counts.stripped;
+      c.substituted += result.counts.substituted;
+      tabCounts.set(tabId, c);
+    }
+    return Promise.resolve(result);
+  }
   if (msg?.type === 'status') {
     return Promise.resolve({
       visits: registry.snapshot(),
       disabledTabs: guard.disabledTabs(),
+      tabs: Object.fromEntries(tabCounts),
       settings,
     });
   }

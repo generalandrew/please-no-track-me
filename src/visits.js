@@ -31,6 +31,7 @@ export function createRegistry({ data, now = () => Date.now(), ttlMs = DEFAULT_T
   const visits = new Map();     // domain → visit
   const tabToDomain = new Map(); // tabId → domain
   const emitted = new Map();     // exact url string → domain (URLs we produced ourselves)
+  const EMITTED_CAP = 5000;      // a bounded scratchpad, not a history; oldest go first
   const pending = new Map();     // domain → seed reserved before the visit exists (M3 hook)
 
   function expired(v, t) {
@@ -93,7 +94,11 @@ export function createRegistry({ data, now = () => Date.now(), ttlMs = DEFAULT_T
      * the content script rewrote — is recorded here so the navigation that follows is
      * recognised and passed through rather than rewritten a second time.
      */
-    markEmitted(domain, url) { emitted.set(url, domain); },
+    markEmitted(domain, url) {
+      if (emitted.has(url)) emitted.delete(url);       // re-insert at the end
+      emitted.set(url, domain);
+      if (emitted.size > EMITTED_CAP) emitted.delete(emitted.keys().next().value);
+    },
     takeEmitted(url) {
       const d = emitted.get(url);
       if (d !== undefined) emitted.delete(url);
@@ -116,7 +121,6 @@ export function createRegistry({ data, now = () => Date.now(), ttlMs = DEFAULT_T
       const t = now();
       let n = 0;
       for (const [d, v] of visits) if (expired(v, t)) { visits.delete(d); n++; }
-      if (emitted.size > 500) emitted.clear(); // a bounded scratchpad, not a history
       return n;
     },
 

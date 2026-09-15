@@ -9,7 +9,9 @@
     "validate": "node tools/validate.mjs",
     "coherence": "node test/coherence/run.mjs",
     "m2": "node test/m2/run.mjs",
-    "test": "node tools/validate.mjs && node test/coherence/run.mjs && node test/m2/run.mjs"
+    "m3": "node test/m3/run.mjs",
+    "bench": "node test/m3/bench.mjs",
+    "test": "node tools/validate.mjs && node test/coherence/run.mjs && node test/m2/run.mjs && node test/m3/run.mjs && node test/m3/bench.mjs"
   },
   "license": "MIT"
 }

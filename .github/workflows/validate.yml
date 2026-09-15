@@ -18,4 +18,6 @@ jobs:
       - run: node tools/validate.mjs
       - run: node test/coherence/run.mjs
       - run: node test/m2/run.mjs
+      - run: node test/m3/run.mjs
+      - run: node test/m3/bench.mjs
       - run: node tools/build-data.mjs

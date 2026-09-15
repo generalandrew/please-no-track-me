@@ -15,8 +15,8 @@ you then copy:  example.com/article
 
 Every value in the middle line is fabricated. None of it contradicts anything else in it.
 
-**Status: M2 — entry substitution works in the test harness; not yet verified in a real
-Firefox profile.** The full product and technical specification is in
+**Status: M3 — entry substitution and in-page link rewriting work in the test harness;
+not yet verified in a real Firefox profile.** The full product and technical specification is in
 **[PRODUCT.md](PRODUCT.md)**.
 
 ## Try it
@@ -31,9 +31,10 @@ Then in Firefox: `about:debugging` → *This Firefox* → *Load Temporary Add-on
 the values you arrive with are not the ones you clicked. Navigate again within the same
 site and they are simply gone.
 
-What exists today is the navigation-time half (§7.3A): the blocking listener, the visit
-registry, the loop guard, and the substitution engine behind them. In-page link rewriting
-(M3), redirector unwrapping (M4) and the popup (M5) are not built yet.
+What exists today: the navigation-time half (§7.3A — blocking listener, visit registry,
+loop guard) and the in-page half (§7.3B — links are rewritten where they sit, so what you
+hover and copy is already the clean or the fabricated form). Redirector unwrapping (M4)
+and the popup (M5) are not built yet.
 
 ## Why fabricate instead of strip
 
