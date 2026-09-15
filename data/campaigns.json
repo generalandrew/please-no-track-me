@@ -1,0 +1,43 @@
+{
+  "$comment": "C2 open-vocabulary generation for campaign-shaped parameters. See PRODUCT.md §9.4 constraints 3 and 4.",
+  "version": "2026.09.15",
+
+  "appliesTo": ["utm_campaign", "utm_id", "mtm_campaign", "pk_campaign", "campaign"],
+
+  "separators": {
+    "candidates": ["-", "_"],
+    "policy": "per-visit",
+    "$note": "One separator is chosen per visit and used for every campaign-shaped value in that visit. Mixing separators across a single arrival is a tell."
+  },
+
+  "templates": [
+    { "id": "season-year-theme",      "pattern": "{season}{sep}{year}{sep}{theme}",        "channels": ["email", "social", "display", "referral"] },
+    { "id": "theme-audience",         "pattern": "{theme}{sep}{audience}",                 "channels": ["email", "social", "push"] },
+    { "id": "quarter-year-objective", "pattern": "{quarter}{sep}{year}{sep}{objective}",   "channels": ["display", "search"] },
+    { "id": "objective-geo-quarter",  "pattern": "{objective}{sep}{geo}{sep}{quarter}",    "channels": ["search", "display"] },
+    { "id": "month-year-theme",       "pattern": "{month}{year}{sep}{theme}",              "channels": ["email", "sms"] },
+    { "id": "product-theme",          "pattern": "{product}{sep}{theme}",                  "channels": ["email", "referral", "video"] }
+  ],
+
+  "slots": {
+    "season":    { "kind": "list", "values": ["spring", "summer", "fall", "winter"], "coherentWith": "current-date" },
+    "year":      { "kind": "generator", "generator": "current-year" },
+    "quarter":   { "kind": "generator", "generator": "current-quarter" },
+    "month":     { "kind": "generator", "generator": "current-month-abbrev" },
+    "theme":     { "kind": "list", "values": ["longform", "guide", "roundup", "launch", "update", "digest", "feature", "explainer", "howto", "weekly", "recap", "deepdive"] },
+    "audience":  { "kind": "list", "values": ["subscribers", "readers", "members", "newusers", "returning", "prospects", "lapsed"] },
+    "objective": { "kind": "list", "values": ["awareness", "acquisition", "retention", "engagement", "signups", "traffic", "conversion"] },
+    "geo":       { "kind": "list", "values": ["us", "uk", "eu", "ca", "apac", "global", "emea"] },
+    "product":   { "kind": "list", "values": ["newsletter", "report", "webinar", "guide", "series", "podcast", "brief"] }
+  },
+
+  "generators": {
+    "current-year":         { "returns": "four-digit year from the local clock" },
+    "current-quarter":      { "returns": "q1|q2|q3|q4 from the local clock" },
+    "current-month-abbrev": { "returns": "three-letter lowercase month from the local clock" }
+  },
+
+  "$temporalPolicy": "Every date-bearing slot resolves against the clock at the moment the visit begins. A campaign named for a season or quarter that has passed is one of the cheapest tells to spot in an analytics table, so no historical values are ever emitted.",
+
+  "$namingPolicy": "Slot vocabularies are deliberately generic. A campaign slug naming a real company's real campaign would edge from misreporting one's own arrival toward impersonating that company, which PRODUCT.md §11.1 constraint 3 rules out."
+}

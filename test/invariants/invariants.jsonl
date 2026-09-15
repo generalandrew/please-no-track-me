@@ -1,0 +1,25 @@
+{"url":"https://accounts.example.com/oauth/authorize?client_id=abc123&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb&response_type=code&scope=openid%20profile&state=xyz789&nonce=n0nce","why":"OAuth authorization request; state and nonce are load-bearing"}
+{"url":"https://app.example.com/callback?code=4/0AY0e-g7&state=xyz789","why":"OAuth callback; both parameters must survive exactly"}
+{"url":"https://bucket.s3.amazonaws.com/report.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA%2F20260915%2Fus-east-1&X-Amz-Date=20260915T120000Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=deadbeef","why":"Presigned S3 URL fails closed on any change"}
+{"url":"https://cdn.example.com/video.mp4?Policy=eyJTdGF0ZW1lbnQi&Signature=abc&Key-Pair-Id=APKA123","why":"CloudFront signed URL"}
+{"url":"https://www.google.com/search?q=firefox+extension&hl=en&start=20","why":"Search query with pagination and locale"}
+{"url":"https://shop.example.com/checkout?cart=99213&order_id=A-5521&total=48.20&currency=usd","why":"Checkout state"}
+{"url":"https://www.amazon.com/dp/B0123ABCDE?tag=somepublisher-20","why":"Amazon affiliate tag; substituting it would redirect a commission"}
+{"url":"https://www.example.com/product?sscid=41k0x8abc&utm_source=blog","why":"ShareASale click id present; whole URL is exempt even though utm_source is also present"}
+{"url":"https://track.example.com/deal?irclickid=xyz123&utm_campaign=spring","why":"Impact affiliate click id; whole URL exempt"}
+{"url":"https://www.example.com/offer?cjevent=7f3a2b&utm_medium=email","why":"CJ affiliate event; whole URL exempt"}
+{"url":"https://reset.example.com/password?token=7f3a2b9c&email=user%40example.com","why":"Password reset token and identity"}
+{"url":"https://api.example.com/v1/items?api_key=sk_live_abc&limit=50&offset=100","why":"API key and pagination"}
+{"url":"https://docs.example.com/view?file=report.pdf&page=12&t=45","why":"Document position; t and page are functional here"}
+{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42","why":"Video id and timestamp must survive"}
+{"url":"https://login.example.com/authorize?code_challenge=E9Melhoa&code_challenge_method=S256&client_id=app&redirect_uri=https%3A%2F%2Fapp.example.com","why":"PKCE flow"}
+{"url":"https://www.irs.gov/refunds?utm_source=email&utm_medium=newsletter","why":"Strip-only origin: government; may be stripped but never fabricated"}
+{"url":"https://www.paypal.com/activity?utm_source=newsletter","why":"Strip-only origin: finance"}
+{"url":"https://www.nhs.uk/services?utm_campaign=winter","why":"Strip-only origin: health"}
+{"url":"https://mail.example.com/unsubscribe?u=abc123&id=99&hash=7f3a","why":"Unsubscribe link; u, id and hash are all functional"}
+{"url":"https://support.example.com/ticket?id=44812&sort=created&order=desc","why":"Ordinary functional query"}
+{"url":"https://www.example.com/redeem?promo_code=WINTER25&qty=2","why":"Promotional code and quantity are commerce fields"}
+{"url":"https://calendar.example.com/event?start=2026-10-01&end=2026-10-02&locale=en-GB","why":"Date range and locale"}
+{"url":"https://sso.example.com/saml?SAMLRequest=fZJNb&RelayState=%2Fdash&Signature=abc","why":"SAML flow with signature"}
+{"url":"https://www.example.com/download?path=%2Ffiles%2Freport.zip&expires=1789000000&sig=9a8b","why":"Expiring signed download"}
+{"url":"https://www.example.com/invite?invite_code=JOIN-9912&referral_code=FRIEND50","why":"Invite and referral codes can carry value"}

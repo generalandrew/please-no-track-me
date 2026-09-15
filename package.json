@@ -1,0 +1,12 @@
+{
+  "name": "please-no-track-me",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Firefox extension that replaces tracking parameters with coherent false values on site entry, then strips them for the rest of the visit",
+  "scripts": {
+    "validate": "node tools/validate.mjs",
+    "test": "node tools/validate.mjs"
+  },
+  "license": "MIT"
+}

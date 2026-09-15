@@ -1,0 +1,37 @@
+{
+  "$comment": "Origins where fabrication is disabled and only stripping applies. See PRODUCT.md §11.2.",
+  "version": "2026.09.15",
+
+  "$reasoning": "These are contexts where an unexpected parameter value is most likely to be acted on rather than merely logged, and where the cost of being wrong is borne by the user rather than by the tracker.",
+
+  "$honestLimitation": "This list cannot be complete and should not be presented as if it were. There is no reliable public signal for 'this is a bank'. The suffix rules below are sound; the domain seed list is a convenience that will always lag reality. The real protections are the never-touch parameter list, which is category-independent, and the user's own per-site strip-only setting. Do not let this file's existence create the impression that sensitive sites are comprehensively covered.",
+
+  "suffixRules": [
+    { "suffix": ".gov",     "category": "government" },
+    { "suffix": ".mil",     "category": "government" },
+    { "suffix": ".gov.uk",  "category": "government" },
+    { "suffix": ".gc.ca",   "category": "government" },
+    { "suffix": ".gov.au",  "category": "government" },
+    { "suffix": ".bank",    "category": "finance" },
+    { "suffix": ".insurance", "category": "finance" },
+    { "suffix": ".nhs.uk",  "category": "health" },
+    { "suffix": ".pharmacy", "category": "health" }
+  ],
+
+  "domains": [
+    { "domain": "irs.gov", "category": "government" },
+    { "domain": "ssa.gov", "category": "government" },
+    { "domain": "healthcare.gov", "category": "health" },
+    { "domain": "paypal.com", "category": "finance" },
+    { "domain": "stripe.com", "category": "finance" },
+    { "domain": "wise.com", "category": "finance" },
+    { "domain": "coinbase.com", "category": "finance" },
+    { "domain": "fidelity.com", "category": "finance" },
+    { "domain": "vanguard.com", "category": "finance" },
+    { "domain": "schwab.com", "category": "finance" }
+  ],
+
+  "$notIncluded": {
+    "edu": "A blanket .edu rule was considered and rejected. Universities are ordinary browsing for most users, and marking every campus page strip-only would suppress the feature across a large share of normal traffic for a narrow enrolment case. Enrolment and financial-aid flows are protected by the never-touch list instead, which is where their risk actually lives."
+  }
+}

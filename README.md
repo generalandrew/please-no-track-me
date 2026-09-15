@@ -34,7 +34,7 @@ someone's data is cheap. A defect in it is not.
 |---|---|
 | **Entry** | First navigation to a domain: tracking values are replaced with a coherent fake persona — channel, source, medium, campaign and click IDs that all agree with each other |
 | **Interior** | Rest of the visit: tracking parameters are stripped, nothing further is fabricated |
-| **Redirectors** | `l.facebook.com/l.php?u=…`, `t.co` and friends are unwrapped, then the destination gets the entry treatment |
+| **Redirectors** | `l.facebook.com/l.php?u=…`, `out.reddit.com`, `google.com/url` and friends are unwrapped, then the destination gets the entry treatment. Wrappers that do not carry their destination — `t.co` — are left alone, because resolving them would need a network request |
 | **Opaque IDs** | `fbclid`, `gclid`, `msclkid` get values conforming to that vendor's real grammar — valid shape, no real click behind it |
 | **Unknown params** | Shape-preserving substitution: a word becomes a different word, hex becomes different hex of the same length |
 | **Rule data** | Bundled in this repo. No external database, no update service, **zero outbound requests** |

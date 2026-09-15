@@ -1,0 +1,35 @@
+{
+  "$comment": "C5. Checked after everything else and wins unconditionally. A URL containing any of these is passed through entirely untouched — no substitution, and no stripping either. See PRODUCT.md §9.5 and §11.1.",
+  "version": "2026.09.15",
+
+  "$policy": "Ambiguity resolves toward inclusion. Substitution causes a site to act on a wrong value, where stripping usually causes it to fall back to a default, so this list is deliberately broader than the equivalent list in a subtractive tool.",
+
+  "groups": {
+    "auth": {
+      "$why": "A fabricated credential or flow parameter attacks the user's own session.",
+      "params": ["token", "access_token", "id_token", "refresh_token", "auth", "authorization", "api_key", "apikey", "key", "secret", "password", "passwd", "otp", "mfa", "session", "sessionid", "session_id", "sid", "jwt", "bearer"]
+    },
+    "oauth": {
+      "$why": "OAuth and OIDC parameters are load-bearing for the whole handshake.",
+      "params": ["code", "state", "nonce", "redirect_uri", "redirect_url", "client_id", "response_type", "scope", "code_challenge", "code_verifier", "grant_type", "audience", "prompt", "login_hint"]
+    },
+    "signature": {
+      "$why": "Signed URLs fail closed. Changing any component produces a 403, not a log entry.",
+      "params": ["sig", "signature", "hmac", "hash", "checksum", "expires", "expiry", "x-amz-signature", "x-amz-credential", "x-amz-date", "x-amz-security-token", "x-amz-algorithm", "x-amz-signedheaders", "x-amz-expires", "key-pair-id", "policy", "verify", "csrf", "csrf_token", "_token"]
+    },
+    "function": {
+      "$why": "Ordinary query fields. Substituting these changes what the user asked for.",
+      "params": ["q", "query", "s", "search", "keyword", "keywords", "id", "uid", "page", "p", "offset", "limit", "per_page", "sort", "order", "filter", "lang", "locale", "hl", "country", "currency", "v", "t", "time", "start", "end", "date", "format", "callback", "next", "return", "return_to", "returnurl", "continue", "url", "u", "file", "path", "email", "user", "username"]
+    },
+    "commerce": {
+      "$why": "PRODUCT.md §11.1 constraint 1. Substituting one affiliate's identifier for another's redirects a commission to a party that did not earn it. This is fraud, not privacy, and it is the hardest line in the product.",
+      "params": ["tag", "affid", "aff_id", "affiliate", "affiliate_id", "partner_id", "partnerid", "clickref", "sscid", "awc", "irclickid", "cjevent", "ranmid", "raneaid", "ransiteid", "siteid", "site_id", "pubid", "publisher_id", "subid", "sub_id", "ascsubtag", "coupon", "promo", "promo_code", "promocode", "discount", "voucher", "referral_code", "refcode", "invite", "invite_code"]
+    },
+    "payment": {
+      "$why": "Anything that can be part of a transaction record.",
+      "params": ["amount", "price", "total", "qty", "quantity", "order_id", "orderid", "invoice", "transaction", "transaction_id", "txn", "payment_id", "cart", "checkout"]
+    }
+  },
+
+  "$matching": "Names are compared case-insensitively after trimming. A URL carrying any listed name is exempt in full — the extension does not attempt to rewrite the other parameters around it, because a URL containing a signature or an OAuth handshake is one whose exact shape is likely to matter."
+}

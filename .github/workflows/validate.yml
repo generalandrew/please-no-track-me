@@ -1,0 +1,18 @@
+name: validate taxonomy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # No install step: tools/validate.mjs is dependency-free by design, so a fresh
+      # clone can check the taxonomy with nothing but node.
+      - run: node tools/validate.mjs

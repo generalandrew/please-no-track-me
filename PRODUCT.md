@@ -348,6 +348,12 @@ it is a new domain, stripping if it is within the current visit.
 
 **F4.3** The destination's own fragment is preserved; the wrapper's is discarded.
 
+**F4.4** A wrapper that does **not** carry its destination in the URL cannot be unwrapped at
+all. `t.co` is the common case: it holds an opaque short code, and resolving it requires an
+HTTP request, which §12's zero-outbound-requests commitment forbids. Such wrappers are
+catalogued with `unwrappable: false` and left untouched. Earlier drafts of this document
+used `t.co` as an example of unwrapping; that was wrong.
+
 ### 8.5 Controls
 
 **F5.1 Per-site pause.** The popup offers "Pause on this site", which stops all

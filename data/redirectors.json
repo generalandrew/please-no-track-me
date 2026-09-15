@@ -1,0 +1,143 @@
+{
+  "$comment": "Redirector wrappers. See PRODUCT.md §8.4.",
+  "version": "2026.09.15",
+
+  "$interactionWithNeverTouch": "never-touch.json governs parameter REWRITING, not unwrapping. Several redirectors carry their destination in a parameter named 'u' or 'url', which is in the never-touch function group precisely because it is load-bearing. Unwrapping reads that parameter and discards the wrapper entirely; it never rewrites it in place. The two rules do not conflict, but an implementation that checks never-touch before dispatching to unwrap would silently disable most of this file. Order matters: unwrap first, then classify the destination.",
+
+  "$unwrappablePolicy": "unwrappable:false is not a gap to be filled later. Each one is a deliberate refusal, for one of three reasons: the destination is not in the URL and would need a network request to resolve (PRODUCT.md §12 forbids outbound requests); removing the wrapper changes a commercial outcome (§11.1 constraint 1); or the wrapper is a security control the user or their organization relies on.",
+
+  "rules": [
+    {
+      "id": "facebook-lphp",
+      "hosts": ["l.facebook.com", "lm.facebook.com", "l.messenger.com", "l.instagram.com"],
+      "pathPrefix": "/l.php",
+      "destination": { "kind": "param", "name": "u", "encoding": "uri" },
+      "unwrappable": true,
+      "evidence": "Logging shim; the destination is present in full and reachable directly."
+    },
+    {
+      "id": "reddit-outbound",
+      "hosts": ["out.reddit.com"],
+      "destination": { "kind": "param", "name": "url", "encoding": "uri" },
+      "unwrappable": true,
+      "evidence": "Click-logging hop; destination present in full."
+    },
+    {
+      "id": "google-url",
+      "hosts": ["www.google.com", "google.com"],
+      "pathPrefix": "/url",
+      "destination": { "kind": "param", "name": ["q", "url"], "encoding": "uri" },
+      "unwrappable": true,
+      "evidence": "Organic result redirect; destination present in full."
+    },
+    {
+      "id": "youtube-redirect",
+      "hosts": ["www.youtube.com", "youtube.com"],
+      "pathPrefix": "/redirect",
+      "destination": { "kind": "param", "name": "q", "encoding": "uri" },
+      "unwrappable": true,
+      "evidence": "Outbound interstitial for description links; destination present in full."
+    },
+    {
+      "id": "linkedin-redir",
+      "hosts": ["www.linkedin.com", "linkedin.com"],
+      "pathPrefix": "/redir/redirect",
+      "destination": { "kind": "param", "name": "url", "encoding": "uri" },
+      "unwrappable": true,
+      "evidence": "Logging hop; destination present in full."
+    },
+    {
+      "id": "vk-away",
+      "hosts": ["away.vk.com", "vk.com"],
+      "pathPrefix": "/away.php",
+      "destination": { "kind": "param", "name": "to", "encoding": "uri" },
+      "unwrappable": true,
+      "evidence": "Logging hop; destination present in full."
+    },
+    {
+      "id": "steam-linkfilter",
+      "hosts": ["steamcommunity.com"],
+      "pathPrefix": "/linkfilter",
+      "destination": { "kind": "param", "name": "url", "encoding": "uri" },
+      "unwrappable": true,
+      "evidence": "Interstitial warning page; destination present in full."
+    },
+    {
+      "id": "disqus-url",
+      "hosts": ["disq.us"],
+      "pathPrefix": "/url",
+      "destination": { "kind": "param", "name": "url", "encoding": "uri" },
+      "unwrappable": true,
+      "evidence": "Logging hop; destination present in full."
+    },
+    {
+      "id": "slack-redir",
+      "hosts": ["slack-redir.net"],
+      "pathPrefix": "/link",
+      "destination": { "kind": "param", "name": "url", "encoding": "uri" },
+      "unwrappable": true,
+      "evidence": "Logging hop; destination present in full."
+    },
+    {
+      "id": "tumblr-redirect",
+      "hosts": ["t.umblr.com"],
+      "pathPrefix": "/redirect",
+      "destination": { "kind": "param", "name": "z", "encoding": "uri" },
+      "unwrappable": true,
+      "evidence": "Logging hop; destination present in full."
+    },
+    {
+      "id": "hrefli",
+      "hosts": ["href.li"],
+      "destination": { "kind": "query-tail", "encoding": "raw" },
+      "unwrappable": true,
+      "evidence": "Referrer-stripping proxy; the destination is the entire query string."
+    },
+
+    {
+      "id": "twitter-tco",
+      "hosts": ["t.co"],
+      "destination": { "kind": "none" },
+      "unwrappable": false,
+      "evidence": "The destination is NOT present in the URL — t.co carries only an opaque short code, and resolving it requires an HTTP request. PRODUCT.md §12 commits to zero outbound requests, so this wrapper cannot be unwrapped without breaking that commitment. Left alone deliberately.",
+      "$correction": "Earlier drafts of PRODUCT.md and README.md used t.co as an example of unwrapping. That was wrong and has been corrected."
+    },
+    {
+      "id": "google-adservices-aclk",
+      "hosts": ["www.googleadservices.com", "googleadservices.com", "adclick.g.doubleclick.net"],
+      "pathPrefix": "/pagead/aclk",
+      "destination": { "kind": "param", "name": "adurl", "encoding": "uri" },
+      "unwrappable": false,
+      "evidence": "Paid click. Bypassing the wrapper changes a commercial outcome — the publisher's click is not recorded and the advertiser's landing-page contract is broken. PRODUCT.md §11.1 constraint 1."
+    },
+    {
+      "id": "affiliate-networks",
+      "hosts": ["click.linksynergy.com", "shareasale.com", "www.shareasale.com", "awin1.com", "www.awin1.com", "anrdoezrs.net", "dpbolvw.net", "kqzyfj.com", "jdoqocy.com", "tkqlhce.com", "go.redirectingat.com", "go.skimresources.com"],
+      "destination": { "kind": "param", "name": ["url", "murl", "u", "ued"], "encoding": "uri" },
+      "unwrappable": false,
+      "evidence": "Affiliate networks. Unwrapping removes the attribution that pays the referring publisher. PRODUCT.md §11.1 constraint 1 — never move money."
+    },
+    {
+      "id": "pinterest-offsite",
+      "hosts": ["www.pinterest.com", "pinterest.com"],
+      "pathPrefix": "/offsite",
+      "destination": { "kind": "param", "name": "url", "encoding": "uri" },
+      "unwrappable": false,
+      "evidence": "Offsite links can carry affiliate attribution. Treated as commercial until a rule can distinguish the two cases."
+    },
+    {
+      "id": "microsoft-safelinks",
+      "hosts": ["*.safelinks.protection.outlook.com"],
+      "destination": { "kind": "param", "name": "url", "encoding": "uri" },
+      "unwrappable": false,
+      "evidence": "Enterprise phishing protection. The wrapper is a security control the user's organization deliberately applied; bypassing it would strip a defense on this product's own initiative."
+    },
+    {
+      "id": "proofpoint-urldefense",
+      "hosts": ["urldefense.proofpoint.com", "urldefense.com"],
+      "destination": { "kind": "param", "name": "u", "encoding": "proofpoint" },
+      "unwrappable": false,
+      "evidence": "Enterprise phishing protection. Same reasoning as Microsoft Safe Links."
+    }
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "$comment": "C1 closed vocabularies and the channel model. See PRODUCT.md §9.2 and §9.4.",
+  "version": "2026.09.15",
+
+  "channels": {
+    "email": {
+      "mediums": ["email", "newsletter", "e-mail"],
+      "note": "Mail clients and marketing platforms."
+    },
+    "social": {
+      "mediums": ["social", "social-organic", "paid-social", "social-media"],
+      "note": "Organic and paid placement on social platforms."
+    },
+    "search": {
+      "mediums": ["cpc", "ppc", "paid-search", "organic"],
+      "note": "Search engines, paid and organic."
+    },
+    "display": {
+      "mediums": ["display", "banner", "cpm", "retargeting", "native"],
+      "note": "Display and native advertising networks."
+    },
+    "referral": {
+      "mediums": ["referral", "link", "partner", "content"],
+      "note": "Editorial and non-commercial links from other sites."
+    },
+    "video": {
+      "mediums": ["video", "video-ad"],
+      "note": "Video platforms."
+    },
+    "push": {
+      "mediums": ["push", "notification", "web-push"],
+      "note": "Browser and app push notifications."
+    },
+    "sms": {
+      "mediums": ["sms", "mms", "text"],
+      "note": "Messaging."
+    }
+  },
+
+  "$channelPolicy": {
+    "excluded": ["affiliate"],
+    "reason": "An affiliate channel would require fabricating affiliate or partner identifiers. PRODUCT.md §11.1 prohibits it absolutely: substituting one affiliate's tag for another's redirects a commission. No persona may ever be drawn from a commercial channel."
+  },
+
+  "params": {
+    "utm_source": {
+      "class": "C1",
+      "values": [
+        { "v": "newsletter", "channel": "email" },
+        { "v": "mailchimp", "channel": "email" },
+        { "v": "substack", "channel": "email" },
+        { "v": "hubspot", "channel": "email" },
+        { "v": "klaviyo", "channel": "email" },
+        { "v": "sendgrid", "channel": "email" },
+        { "v": "campaign-monitor", "channel": "email" },
+        { "v": "facebook", "channel": "social" },
+        { "v": "instagram", "channel": "social" },
+        { "v": "twitter", "channel": "social" },
+        { "v": "reddit", "channel": "social" },
+        { "v": "linkedin", "channel": "social" },
+        { "v": "mastodon", "channel": "social" },
+        { "v": "bluesky", "channel": "social" },
+        { "v": "pinterest", "channel": "social" },
+        { "v": "tiktok", "channel": "social" },
+        { "v": "google", "channel": "search" },
+        { "v": "bing", "channel": "search" },
+        { "v": "duckduckgo", "channel": "search" },
+        { "v": "ecosia", "channel": "search" },
+        { "v": "yahoo", "channel": "search" },
+        { "v": "google-display", "channel": "display" },
+        { "v": "taboola", "channel": "display" },
+        { "v": "outbrain", "channel": "display" },
+        { "v": "criteo", "channel": "display" },
+        { "v": "adroll", "channel": "display" },
+        { "v": "partner-site", "channel": "referral" },
+        { "v": "blog", "channel": "referral" },
+        { "v": "forum", "channel": "referral" },
+        { "v": "medium", "channel": "referral" },
+        { "v": "news-site", "channel": "referral" },
+        { "v": "youtube", "channel": "video" },
+        { "v": "vimeo", "channel": "video" },
+        { "v": "twitch", "channel": "video" },
+        { "v": "onesignal", "channel": "push" },
+        { "v": "webpush", "channel": "push" },
+        { "v": "sms", "channel": "sms" },
+        { "v": "twilio", "channel": "sms" }
+      ]
+    },
+
+    "utm_medium": {
+      "class": "C1",
+      "from": "channel.mediums",
+      "$note": "Not an independent vocabulary. The medium is drawn from the mediums of the channel already chosen for the visit, which is what enforces PRODUCT.md §9.4 constraint 1."
+    },
+
+    "utm_content": {
+      "class": "C1",
+      "channelAgnostic": true,
+      "values": [
+        { "v": "body-link" }, { "v": "header-cta" }, { "v": "footer-link" },
+        { "v": "sidebar-promo" }, { "v": "hero-button" }, { "v": "inline-text" },
+        { "v": "image-link" }, { "v": "cta-primary" }, { "v": "cta-secondary" },
+        { "v": "variant-a" }, { "v": "variant-b" }
+      ]
+    },
+
+    "utm_term": {
+      "class": "C1",
+      "channels": ["search", "display"],
+      "$note": "The paid keyword field. Emitting it outside a paid channel is a tell, so the engine omits it unless the incoming URL carried it.",
+      "values": [
+        { "v": "privacy-tools" }, { "v": "browser-extensions" }, { "v": "how-to-guide" },
+        { "v": "best-practices" }, { "v": "getting-started" }, { "v": "comparison" },
+        { "v": "free-trial" }, { "v": "pricing" }, { "v": "alternatives" },
+        { "v": "reviews" }
+      ]
+    },
+
+    "utm_source_platform": {
+      "class": "C1",
+      "channelAgnostic": true,
+      "values": [
+        { "v": "google-ads" }, { "v": "meta-ads" }, { "v": "linkedin-ads" },
+        { "v": "dv360" }, { "v": "manual" }
+      ]
+    },
+
+    "ref": {
+      "class": "C1",
+      "values": [
+        { "v": "newsletter", "channel": "email" },
+        { "v": "digest", "channel": "email" },
+        { "v": "social", "channel": "social" },
+        { "v": "reddit", "channel": "social" },
+        { "v": "hn", "channel": "referral" },
+        { "v": "blog", "channel": "referral" },
+        { "v": "partner", "channel": "referral" },
+        { "v": "search", "channel": "search" },
+        { "v": "homepage", "channel": "referral" },
+        { "v": "related", "channel": "referral" }
+      ],
+      "$warning": "ref is also a common affiliate field. Any ref value matching the commerce patterns in never-touch.json suppresses substitution for the whole URL."
+    },
+
+    "source": {
+      "class": "C1",
+      "values": [
+        { "v": "newsletter", "channel": "email" },
+        { "v": "email", "channel": "email" },
+        { "v": "social", "channel": "social" },
+        { "v": "twitter", "channel": "social" },
+        { "v": "search", "channel": "search" },
+        { "v": "partner", "channel": "referral" },
+        { "v": "direct", "channel": "referral" }
+      ]
+    },
+
+    "platform": {
+      "class": "C1",
+      "channelAgnostic": true,
+      "values": [
+        { "v": "web" }, { "v": "mobile-web" }, { "v": "desktop" }
+      ]
+    }
+  }
+}
