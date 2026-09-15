@@ -1,13 +1,14 @@
 # please-no-track-me — Product Feature Document
 
-**Version 1.0 · 2026-09-04 · Status: approved for build**
+**Version 2.0 · 2026-09-15 · Status: approved for build · Supersedes v1.0 (2026-09-04)**
 
-A Firefox extension that removes tracking parameters from links *in the page, before you
-click them*, and unwraps redirector links so a click goes straight to the destination.
+A Firefox extension that **lies to trackers instead of hiding from them**.
 
-Its rule data lives in a separate open-source repository,
-[`url-no-track-me`](https://github.com/generalandrew/url-no-track-me), so the catalog of
-what-to-strip can be maintained, reviewed and released independently of the extension.
+When you enter a site, the extension rewrites the tracking parameters in the URL to values
+that are well-formed, internally coherent, and wrong. The site records an attribution
+story that is plausible, useful-looking, and about nobody. For the rest of that visit, the
+extension simply removes tracking parameters from links — the lie is told once, at the
+door, where attribution is actually captured.
 
 ---
 
@@ -15,724 +16,870 @@ what-to-strip can be maintained, reviewed and released independently of the exte
 
 | | |
 |---|---|
-| **Product** | `please-no-track-me` — Firefox browser extension |
-| **Data source** | `url-no-track-me` — open-source tracking-parameter catalog + pattern set |
-| **Platform** | Firefox, Manifest V3, listed on addons.mozilla.org (AMO) |
-| **Intervention points** | In-page link rewriting; redirector unwrapping |
-| **Default posture** | Conservative — strip only what is confidently tracking-only; per-site allowlist as escape hatch |
-| **Rule delivery** | Versioned snapshot bundled in the XPI, plus a periodic signed update fetched from the rules repo |
-| **Telemetry** | None. No network calls other than the rule update fetch. |
+| **Product** | `please-no-track-me` — Firefox extension, self-contained |
+| **Core behavior** | Substitute tracking parameter values on site entry; strip them for the rest of the visit |
+| **Substitution quality** | Format-conforming and semantically coherent — it must look like a real attribution record, not like noise |
+| **Redirectors** | Unwrapped to the destination, whose parameters are then substituted |
+| **Rule data** | Bundled in this repository. No external database, no update service, no network calls. |
+| **Platform** | Firefox, Manifest V3, listed on addons.mozilla.org |
+| **Default posture** | Conservative — functional parameters are never touched; per-site pause as the escape hatch |
+| **Telemetry** | None. The extension makes **zero** outbound requests of its own. |
 
 ---
 
-## 2. Problem
+## 2. What changed from v1.0, and why
 
-Almost every link that reaches a person today has been decorated with identifiers that
-have nothing to do with finding the content:
+v1.0 was a **subtractive** product: identify tracking parameters, remove them, and keep the
+catalog of what-to-remove in a separate repository that the extension fetched daily.
+
+v2.0 makes three changes.
+
+**2.1 Substitution replaces removal at the point of entry.** Removal abstains from the
+dataset; substitution corrupts it. A stripped URL arrives at an analytics pipeline as
+"direct / none" — a bucket analysts already know how to discount, and one that marks the
+visitor as somebody running a privacy tool. A URL carrying `utm_source=newsletter`,
+`utm_medium=email`, `utm_campaign=fall-longread` arrives as an ordinary, high-confidence
+record that is entirely false. The first is a gap in their data. The second is a defect in
+it, and defects are far more expensive than gaps.
+
+It also removes a signal. A browser that strips every tracking parameter is identifiable
+*by that fact*. A browser that arrives with well-formed, plausible parameters looks like
+every other browser.
+
+**2.2 The separate rules database is gone.** v1.0 split the catalog into
+`url-no-track-me` so rules could ship faster than the extension. That reasoning was sound
+for a subtractive product, where coverage of a long tail of parameter names is the whole
+game and a missed parameter is a leak. It is much weaker here: substitution depends on a
+*taxonomy* — vendor grammars and semantic vocabularies — which changes on the timescale of
+ad platforms, not of marketing campaigns. That taxonomy is design work, it is versioned
+with the code that interprets it, and it does not benefit from an independent release
+cadence.
+
+Removing the split also removes an entire subsystem: the update fetcher, signature
+verification, schema-compatibility negotiation, rollback, and the AMO conversation about
+remote data. The extension now ships everything it knows and makes no network requests at
+all.
+
+**2.3 Redirectors are unwrapped *and* the destination is substituted.** v1.0 unwrapped and
+cleaned. v2.0 unwraps and then applies the full entry-substitution to the destination, so
+a click through `l.facebook.com` arrives at the real site with a coherent story that does
+not mention Facebook.
+
+The companion repository `url-no-track-me` has been deleted.
+
+---
+
+## 3. Problem
+
+Almost every link that reaches a person has been decorated with identifiers that have
+nothing to do with finding the content:
 
 - **Campaign parameters** — `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`,
-  `utm_content`, `utm_id`, and dozens of vendor variants (`mc_cid`, `mkt_tok`, `_hsenc`).
+  `utm_content`, `utm_id`, and vendor variants (`mc_cid`, `mkt_tok`, `_hsenc`).
 - **Click identifiers** — `fbclid`, `gclid`, `gbraid`, `wbraid`, `msclkid`, `ttclid`,
-  `igshid`, `twclid`, `dclid`, `yclid`. These are per-click, per-user values; they
+  `igshid`, `twclid`, `dclid`, `yclid`. These are per-click, per-user values. They
   identify *you*, not the page.
-- **Referrer/attribution fields** — `?source=`, `?ref=`, `?referrer=`, `?share_id=`,
-  `?si=` on YouTube, `/ref=` path segments on Amazon.
-- **Redirector wrappers** — `l.facebook.com/l.php?u=…`, `t.co/…`, `out.reddit.com/…`,
-  `googleadservices.com/pagead/aclk?…`, `linkedin.com/redir/redirect?url=…`. These add a
-  logging hop between the click and the destination.
+- **Referrer and attribution fields** — `?source=`, `?ref=`, `?referrer=`, `?share_id=`,
+  `?si=` on YouTube.
+- **Redirector wrappers** — `l.facebook.com/l.php?u=…`, `t.co`, `out.reddit.com`,
+  `googleadservices.com/pagead/aclk`, `linkedin.com/redir/redirect`. A logging hop between
+  the click and the destination.
 
-Three costs follow from this:
+The costs are the familiar ones: cross-site identification, sharing a token minted for you
+with everyone you send the link to, and URLs too long and too unstable to bookmark, cite
+or deduplicate.
 
-1. **Tracking.** The parameters exist so a click can be attributed to a person across
-   sites, sessions and devices. The destination site receives them, logs them, and often
-   passes them onward.
-2. **Sharing pollution.** A copied link carries the sender's identifiers to the
-   recipient. Sharing a `fbclid` link is sharing a token that was minted for you.
-3. **URL rot.** Long, unreadable URLs are hostile in messages, documents, bookmarks and
-   citations, and they defeat deduplication — the same article looks like fifty
-   different pages.
+### 3.1 Why removal is not enough
 
-Existing tools address parts of this. ClearURLs pioneered the catalog approach; uBlock
-Origin can strip parameters with `removeparam` filters; Firefox itself strips a small
-list in Private Browsing with Strict ETP. Each has a gap this product targets:
+Every existing tool in this space — ClearURLs, uBlock Origin's `removeparam`, Firefox's
+own ETP query-stripping — removes. Removal has three weaknesses that this product targets:
 
-- **They act at request time, not at link time.** The dirty URL is still what you see,
-  hover, copy, bookmark and share. Cleaning happens only if you click, and only in your
-  browser — the copied link stays dirty.
-- **The rule data is welded to the tool.** Updating the catalog means shipping a new
-  build of the whole extension, and the catalog cannot be reused by anything else.
+1. **Abstention is cheap to handle.** Analytics systems have always had a large "direct /
+   unknown" bucket — bookmarks, apps, copied links, mail clients that drop referrers. Your
+   removed parameters land in a bucket that was already being estimated around.
+2. **Absence is a signal.** Arriving at a site with a referrer from a social network and
+   no `fbclid` is a recognizable combination. Removal makes a browser unusual; unusual is
+   the opposite of the goal.
+3. **Removal leaves the record empty, not wrong.** It costs the tracker nothing to have
+   one fewer row. It costs them a great deal to have rows they believe and should not.
 
-`please-no-track-me` inverts both: **clean the link where it sits in the page**, and
-**publish the catalog as a standalone, independently versioned, reusable dataset**.
+Substitution attacks the *value* of the data rather than the *volume* of it. That is a
+meaningfully different and stronger position, and it is the premise of this product.
+
+### 3.2 Why only at entry
+
+Attribution is captured on arrival. The `utm_*` set and the click ID exist to answer "how
+did this person get here", and that question is answered once, by the first request of a
+visit. Subsequent internal links carry internal tracking — `?ref=sidebar`,
+`?source=related` — which does not feed cross-site attribution and is not worth lying
+about.
+
+So the product tells one coherent lie per visit, at the moment it is believed, and
+otherwise keeps the user's URLs clean. This is also the safer engineering choice: the
+substitution logic runs on a small number of URLs per visit, not on every link on every
+page, which bounds both the breakage surface and the performance cost.
 
 ---
 
-## 3. Users
+## 4. Users
 
-**Primary — the privacy-conscious everyday user.** Wants fewer identifiers attached to
-their browsing without configuring anything. Installs, and the product works. Will
-uninstall immediately if a site breaks.
+**Primary — the privacy-conscious everyday user.** Installs it and never thinks about it
+again. Will uninstall immediately if a site breaks.
 
-**Secondary — the sharer.** Copies links into chat, email, documents, issue trackers,
-citations. Wants the link they copy to be short and free of their own click IDs. Served
-directly by in-page rewriting: the href they copy is already clean.
+**Secondary — the sharer.** Copies links into chat, email, documents, issue trackers. Wants
+the link they copy to carry neither their own identifiers nor a fabricated campaign. Served
+by interior stripping: within a visit, links in the page are cleaned, so what is copied is
+clean.
 
-**Tertiary — the rule contributor.** Notices a new tracking parameter and wants to add
-it. Served by `url-no-track-me` being a plain, schema-validated, test-covered data repo
-that accepts pull requests from people who are not extension developers.
-
-**Quaternary — the downstream consumer.** Another tool (a link shortener, a CLI, a
-bookmark manager, a Chrome extension someone else writes) wants the catalog. Served by
-the rules repo being separately released, licensed and versioned.
+**Tertiary — the adversarially-minded user.** Understands the difference between abstaining
+from a dataset and corrupting it, and wants the second. Served by the taxonomy's quality:
+this user's measure of the product is whether the fabricated records are good enough to be
+believed.
 
 ### Use cases
 
 | # | Situation | Expected behavior |
 |---|---|---|
-| U1 | Opens a newsletter in webmail; every link has `utm_*` and `mkt_tok` | Hovering shows the clean URL; clicking navigates to the clean URL |
-| U2 | Right-clicks a Facebook link and picks "Copy Link" | Clipboard receives the unwrapped destination, not `l.facebook.com/l.php?u=…` |
-| U3 | Copies a YouTube share link from a page | `?si=` is gone; `?v=` and `?t=` are preserved |
-| U4 | Clicks a Google Ads result | Goes to the advertiser's real URL in one hop where the wrapper permits it; otherwise left alone rather than broken |
-| U5 | A site's checkout stops working after install | Popup shows a one-click "pause on this site"; the site is remembered and never touched again |
-| U6 | A new tracker appears in the wild | A rule lands in `url-no-track-me`, is released, and reaches installed extensions within a day — no AMO submission needed |
+| U1 | Clicks a newsletter link carrying `utm_*` + `mkt_tok` | Site is entered with a coherent but false campaign record; the real one is never sent |
+| U2 | Clicks a Facebook link | `l.facebook.com` wrapper is skipped; the destination receives a well-formed `fbclid` that maps to no real click |
+| U3 | Browses ten more pages on that site | Interior links are stripped clean; nothing further is fabricated |
+| U4 | Copies a link from page six of that visit | Clipboard gets a clean URL — no tracking parameters, no fabricated ones |
+| U5 | Returns to the same site tomorrow | A new visit, a new entry, a new and unrelated coherent story |
+| U6 | A site misbehaves after install | Popup offers one-click "pause on this site"; the site is remembered and never touched again |
 
 ---
 
-## 4. Goals and non-goals
+## 5. Goals and non-goals
 
 ### Goals
 
-- **G1** Remove known tracking parameters from link URLs in the page, so that hover,
-  copy, bookmark, drag and click all see the clean URL.
-- **G2** Unwrap known redirector links to their destination, in one hop, safely.
-- **G3** Never break a page. A false positive that removes a functional parameter is a
-  worse failure than a false negative that leaves a tracker in place.
-- **G4** Keep the rule catalog in a separate, open, reusable repository with a formal
-  schema, CI validation and a regression corpus.
-- **G5** Deliver rule updates to installed extensions without an AMO release, without
-  executing any remote code, and without any way for the update channel to compromise
-  the extension.
-- **G6** Collect nothing. No analytics, no error reporting, no remote logging, no
-  identifiers. Browsing history never leaves the machine.
-- **G7** Impose no perceptible cost on page load or interaction.
+- **G1** On entry to a site, replace tracking parameter values with values that are
+  format-valid, semantically coherent, and false.
+- **G2** For the remainder of that visit, remove tracking parameters from links rather
+  than fabricating more.
+- **G3** Unwrap known redirectors and apply entry substitution to the destination.
+- **G4** Never break a page, and never fabricate a value that could have consequences
+  beyond analytics (see §11 — money, auth, and identity are hard boundaries).
+- **G5** Be entirely self-contained: all rules and vocabularies bundled, no network
+  requests, no external dependency.
+- **G6** Collect nothing and transmit nothing.
+- **G7** Impose no perceptible cost on page load or navigation.
 
-### Non-goals for v1.0
+### Non-goals for v2.0
 
-Explicitly out of scope, each with the reason:
-
-- **N1 Request interception / blocking.** No `declarativeNetRequest`, no blocking
-  `webRequest`. Cleaning happens at the link, not at the request. This keeps permissions
-  narrow and the AMO review simple. *Revisit in v2 for JS-driven navigations that never
-  touch an `<a href>`.*
-- **N2 Clipboard and share-sheet interception.** Not needed — because the href in the
-  DOM is already clean, the browser's own "Copy Link" copies clean text. Intercepting
-  the clipboard would add a permission for a benefit already obtained.
-- **N3 Chrome / Edge / Safari.** Firefox-only. Cross-browser is a v2 conversation and a
-  different engineering shape.
-- **N4 Ad or content blocking.** This is not a blocker. It does not stop requests, hide
-  elements, or interfere with advertising beyond removing identifiers from link URLs.
-- **N5 Cookie, fingerprint, or referrer-header defenses.** Firefox's own ETP covers
-  these; duplicating them is out of scope.
-- **N6 Cleaning the address bar of the page you are already on.** Rewriting the current
-  URL after navigation is a `history.replaceState` intervention with real breakage risk
-  on single-page apps. *Deferred; evaluated in v2 behind an off-by-default setting.*
+- **N1 Ad or content blocking.** Requests are not blocked. Only URLs are rewritten.
+- **N2 Cookie, fingerprint or referrer-header defenses.** Firefox's ETP covers these.
+- **N3 Clipboard or share-sheet interception.** Unnecessary — interior links in the DOM
+  are already clean, so the browser's own "Copy Link" copies clean text.
+- **N4 Chrome / Edge / Safari.** Firefox-only.
+- **N5 Fabricating an entire browsing identity.** The product lies about *how you arrived*,
+  not about who or where you are. No user-agent spoofing, no referrer forgery, no cookie
+  fabrication.
+- **N6 Poisoning at scale as a service.** No coordination between users, no shared value
+  pools, no campaign of deliberate mass corruption. Each installation makes its own local
+  choices about its own traffic. See §11.4.
 
 ---
 
-## 5. Product principles
+## 6. Principles
 
-1. **Conservative by default.** When a rule's safety is uncertain, it does not run.
-   Under-cleaning is recoverable; breaking a user's bank site is not.
-2. **The link in the page is the product surface.** Whatever the user does with a link —
-   look at it, copy it, click it — should get the clean form. One intervention, every
-   benefit.
-3. **Data is not code.** Remote rules are declarative data interpreted by bundled,
-   reviewed code. No remote regex is compiled unvetted; no remote string is ever
-   evaluated.
-4. **Silence is the success state.** No badges demanding attention, no upsells, no
-   onboarding tour. A counter for the curious, and otherwise nothing.
-5. **Escape hatches are one click away.** Every user must be able to turn it off for a
-   site faster than they can uninstall it.
-
----
-
-## 6. Architecture: the two-repo split
-
-```
-┌──────────────────────────────────────────────┐
-│  url-no-track-me  (GitHub, open source)      │
-│                                              │
-│  rules/          catalog + generic patterns  │
-│  schema/         JSON Schema for rules       │
-│  tests/          dirty → clean URL corpus    │
-│  CI              validate + regress + sign   │
-│                          │                   │
-│                          ▼                   │
-│  GitHub Release:  rules.json + rules.json.sig│
-└──────────────────────────┬───────────────────┘
-                           │  HTTPS GET, every 24 h
-                           │  Ed25519 signature verified
-                           ▼
-┌──────────────────────────────────────────────┐
-│  please-no-track-me  (Firefox MV3 extension) │
-│                                              │
-│  rules/rules.json   ← snapshot vendored      │
-│                       at build time          │
-│  background.js      update, verify, swap     │
-│  engine.js          the cleaning engine      │
-│  content.js         DOM rewriting            │
-│  popup / options    UI + allowlist           │
-└──────────────────────────────────────────────┘
-```
-
-**Why split.** Three reasons, in order of weight:
-
-1. **Release cadence.** Tracker discovery is continuous; extension review is not. A rule
-   fix should ship in hours, an extension change in weeks.
-2. **Reviewability.** A pull request that adds `"vero_id"` to a list is reviewable by
-   anyone. A pull request against extension internals is not. The split lets the
-   contributor pool for rules be much larger than the contributor pool for code.
-3. **Reuse.** The catalog has value beyond this extension. Publishing it as a
-   standalone, permissively licensed dataset lets other tools consume it.
-
-**The contract between them** is one file — `rules.json` — with a versioned schema, a
-signature, and a compatibility policy (§9.5). Neither repo depends on the other's
-internals.
+1. **Plausible beats random.** A fabricated record that is obviously synthetic is filtered
+   out in one query and costs the tracker nothing. The entire value of this product is in
+   the quality of the forgery. Coherence is a feature requirement, not a polish item.
+2. **One lie per visit.** Fabricate at the door, then be quiet. Repeated contradictory
+   fabrication within a session is both detectable and pointless.
+3. **Functional parameters are sacred.** Substituting a value is strictly more dangerous
+   than removing it: a removed parameter often falls back to a default, while a wrong one
+   is acted upon. The never-touch list is the most important data in the product.
+4. **Never move money, never touch auth, never impersonate a person.** §11.1. These are
+   hard prohibitions, not defaults.
+5. **Silence is the success state.** No badges demanding attention, no onboarding tour. A
+   counter for the curious, nothing otherwise.
+6. **Escape hatches are one click away.** A user must be able to disable it for a site
+   faster than they can uninstall it.
 
 ---
 
-## 7. Feature specification
+## 7. The visit model
 
-### 7.1 In-page link rewriting
+Everything in this product hangs off one distinction: is this navigation an **entry** into
+a site, or is it **interior** to a visit already underway?
 
-**F1.1** On every page, in every frame, the extension scans for link-bearing elements
-and rewrites their URLs to the cleaned form:
+### 7.1 Definitions
 
-- `a[href]`
-- `area[href]`
+A **visit** is scoped to a **registrable domain** (eTLD+1, so `www.example.com` and
+`shop.example.com` share a visit) and has a lifetime:
 
-`form[action]`, `iframe[src]` and resource URLs are **not** touched in v1 — they are
-functional URLs with a far higher breakage risk and no sharing benefit.
+- it **begins** at the first top-level navigation to that domain with no visit already
+  active;
+- it **stays alive** while any tab is open on that domain, and for **30 minutes** after the
+  last top-level navigation to it;
+- it **ends** on expiry, on the extension being disabled, or when the browser session ends.
 
-**F1.2** The `ping` attribute is removed from `<a>` elements. It exists solely to fire a
-background POST to a tracking endpoint on click and has no user-facing function.
+Visit state lives **in memory only**. It is never written to disk. Closing Firefox erases
+every visit, which is why U5 gets a fresh, unrelated story tomorrow — the product cannot
+remember yesterday's lie even in principle.
 
-**F1.3** Rewriting is applied:
-- on initial page parse, at `document_idle`;
-- on DOM mutation (nodes added, `href` attributes changed), batched;
-- inside open shadow roots discovered during traversal.
+### 7.2 The two phases
 
-**F1.4** Rewriting is **idempotent and non-destructive**. A cleaned element is marked so
-it is not reprocessed. The original URL is retained in memory (a `WeakMap`, not a DOM
-attribute) for the session so that "pause on this site" can restore links without a
-reload.
+| | **Entry** | **Interior** |
+|---|---|---|
+| **Trigger** | Top-level navigation to a domain with no active visit | Any link or navigation within an active visit |
+| **Action on tracking parameters** | **Substitute** — replace values per the taxonomy (§9) | **Strip** — remove them |
+| **Applies to** | The navigating URL, and cross-origin links in the page pointing at domains with no active visit | Same-domain links in the page; subsequent navigations within the visit |
+| **Redirectors** | Unwrapped, then the destination is treated as an entry | Unwrapped, then stripped |
+| **Volume** | A handful of URLs per visit | Every link on every page |
 
-**F1.5** If cleaning would produce an invalid or empty URL, the original is left in
-place. Any exception in the engine leaves the element untouched. Failure mode is always
-"do nothing".
+### 7.3 Where the two phases are applied
 
-**F1.6 Performance budget.** Rewriting must cost less than **5 ms per 1,000 links** on a
-mid-range laptop, must not force synchronous layout, and must not delay first paint.
-Mutation handling is coalesced through `requestIdleCallback` with a `setTimeout`
-fallback, and a per-batch time slice yields back to the browser if exceeded.
+The extension acts at two points, and the visit model determines what it does at each.
 
-**F1.7** Pages the extension never touches: `about:*`, `moz-extension://*`,
-`view-source:`, the AMO domains (`addons.mozilla.org`), and any origin on the user's
-allowlist.
+**A. Navigation-time substitution** (the entry). A top-level navigation to a domain with no
+active visit is intercepted and redirected to its substituted form before the request is
+sent. This is the only place the entry lie can be told reliably, because entries arrive
+from everywhere: clicked in a mail client, pasted into the address bar, opened from a
+native app, restored from history.
 
-### 7.2 Redirector unwrapping
+> **Decision note — this reverses non-goal N1 of v1.0.** v1.0 explicitly excluded request
+> interception to keep permissions narrow. v2.0 requires it: a product whose central
+> feature is what the site learns *on arrival* cannot only handle arrivals that originate
+> from another web page. In-page rewriting alone would cover web→web clicks and miss mail
+> clients, address-bar pastes, and every native app — which is most real entries.
+>
+> The cost is one additional permission and a longer AMO review. If that trade is not
+> acceptable, the fallback is in-page rewriting only, and the feature degrades to "clicks
+> that start in Firefox on another web page" — roughly a third of entries, and it fails on
+> exactly the newsletter case that motivates the product. See §16.1.
 
-**F2.1** When a link's host matches a redirector rule, the extension extracts the
-destination from the named parameter (or path position), decodes it, and replaces the
-link with the destination — which is then itself cleaned by the parameter rules.
+**B. In-page link rewriting** (both phases). Links in the page are rewritten so that what
+the user hovers, copies, bookmarks and clicks is already correct:
 
-**F2.2 Safety constraints.** An unwrap is abandoned, leaving the original link, if any
-of the following hold:
+- a link to a domain with **no active visit** → substituted, so a copied link carries a
+  fabricated story rather than the user's own identifiers;
+- a link **within the current visit** → stripped clean.
+
+The two points cooperate. When (B) emits a substituted URL, the background records that
+exact string for the visit-to-be; if (A) later sees it as a navigation, it passes it
+through unchanged rather than substituting twice. Substitution is idempotent by
+bookkeeping, not by guesswork.
+
+---
+
+## 8. Feature specification
+
+### 8.1 Entry substitution
+
+**F1.1** On a top-level navigation to a registrable domain with no active visit, where the
+URL carries at least one tracking parameter, the extension redirects to the substituted
+URL before the request leaves the browser.
+
+**F1.2** The substitution derives from a **visit seed** — a random value generated at entry
+and held in memory for the visit's lifetime. Every fabricated value for that visit derives
+from that seed, so the whole record is internally consistent (§9.4).
+
+**F1.3** Parameter **names, order, and count are preserved**. Only values change. A URL that
+arrived with five tracking parameters leaves with five. Shape-preservation is what makes
+the record indistinguishable in aggregate.
+
+**F1.4** Sub-resource, XHR, WebSocket and frame requests are never touched. Top-level
+document navigations only.
+
+**F1.5** Substitution is skipped entirely, leaving the URL untouched, when:
+- the domain is on the user's allowlist;
+- the domain is a **strip-only origin** (§11.2);
+- the URL contains any never-touch parameter (§9.5) — the whole URL is left alone rather
+  than partially rewritten;
+- no tracking parameter is recognized;
+- the engine throws for any reason.
+
+**F1.6** A redirect loop guard: a given navigation is rewritten at most once, tracked by
+request id, and never more than three times for one tab in ten seconds. If the guard trips,
+substitution disables itself for that tab and the popup says so.
+
+### 8.2 Interior stripping
+
+**F2.1** Within an active visit, tracking parameters are **removed** from links in the page
+and from subsequent top-level navigations to that domain.
+
+**F2.2** Stripping follows the conservative rules carried over from v1.0: only parameters
+recognized as tracking-only, never anything on the never-touch list, and for
+domain-scoped parameters only on the domains they are scoped to.
+
+**F2.3** If stripping would produce an invalid or empty URL, the original is kept. The `?`
+is dropped entirely when no parameters survive.
+
+### 8.3 In-page link rewriting
+
+**F3.1** The content script rewrites `a[href]` and `area[href]`. `form[action]`,
+`iframe[src]` and resource URLs are not touched.
+
+**F3.2** The `ping` attribute is removed from `<a>` elements — it fires a background POST to
+a tracking endpoint on click and has no user-facing function. There is nothing to
+substitute, so it is simply dropped.
+
+**F3.3** Rewriting runs at `document_idle`, then on DOM mutation (nodes added, `href`
+changed), batched through `requestIdleCallback` with a time slice, and covers open shadow
+roots.
+
+**F3.4** Rewriting is idempotent and non-destructive. Cleaned elements are tracked in a
+`WeakSet`; originals are held in a `WeakMap` so "pause on this site" can restore them
+without a reload.
+
+**F3.5 Performance budget.** Under **5 ms per 1,000 links**, no forced synchronous layout,
+no delay to first paint. Enforced by a benchmark in CI.
+
+**F3.6** Never touched: `about:*`, `moz-extension://*`, `view-source:`,
+`addons.mozilla.org`, allowlisted origins, and strip-only origins (which are stripped, not
+substituted).
+
+### 8.4 Redirector unwrapping
+
+**F4.1** When a link or navigation targets a known redirector, the destination is extracted
+from the catalogued parameter or path position, decoded, and used in place of the wrapper.
+The destination is then processed by the phase that applies to *it* — entry substitution if
+it is a new domain, stripping if it is within the current visit.
+
+**F4.2 Safety gates.** The unwrap is abandoned, leaving the original link, if:
 - the extracted value does not parse as an absolute URL;
-- its scheme is not `http:` or `https:` (blocks `javascript:`, `data:`, `file:`);
+- the scheme is not `http:` or `https:`;
 - unwrapping recurses more than **3** levels;
-- the redirector rule is not marked as safe to unwrap in the catalog.
+- the redirector is catalogued as **not unwrappable** — signed exit links, paywall proxies,
+  and any wrapper whose removal changes a commercial outcome (§11.1).
 
-**F2.3** Redirectors that are known to require the wrapper for the click to function
-(signed exit links, paywalled proxies, affiliate links where removing the wrapper
-changes the commercial outcome) are catalogued as **not unwrappable** and are left
-alone. The catalog carries this distinction explicitly; the extension does not guess.
+**F4.3** The destination's own fragment is preserved; the wrapper's is discarded.
 
-**F2.4** Unwrapping preserves the fragment (`#…`) of the destination URL, not of the
-wrapper.
+### 8.5 Controls
 
-### 7.3 Conservative cleaning and the allowlist
+**F5.1 Per-site pause.** The popup offers "Pause on this site", which stops all
+intervention on that registrable domain immediately and for future visits, restores the
+current page's original links without a reload, and is listed in options for removal.
 
-**F3.1** A parameter is removed only if a rule matches it *and* that rule's confidence
-tier is enabled. Two tiers ship:
+**F5.2 Global pause.** One switch disables everything.
 
-- **`certain`** — the parameter has no function other than tracking, anywhere.
-  Examples: `utm_*`, `fbclid`, `gclid`, `msclkid`, `mc_eid`. **Enabled by default.**
-- **`contextual`** — tracking on the domains where it is catalogued, functional
-  elsewhere. Examples: `ref` on Amazon, `si` on YouTube, `source` on many CMSes but a
-  real query field on others. Applied **only** on the domains the rule names. **Enabled
-  by default, scoped.**
+**F5.3 Mode override.** Per-site, the user can force **strip-only** (never fabricate here)
+or **off**. Strip-only is the middle setting for sites where the user wants cleaning but
+not a fabricated record.
 
-A third tier exists in the schema for rules that are useful but riskier:
+**F5.4 Report a problem.** Opens a pre-filled GitHub issue containing the hostname, the
+rules that matched, and the extension version. Nothing is sent automatically — the user
+sees the text and submits it, or does not.
 
-- **`aggressive`** — broad shape matching (`*_source`, `*_campaign`, `*clid`) applied to
-  any domain. **Disabled by default**, exposed as a single opt-in switch in options.
+### 8.6 Popup
 
-**F3.2 Never-strip list.** The catalog carries an explicit list of parameters that must
-never be removed regardless of shape match — `q`, `id`, `page`, `token`, `code`,
-`state`, `redirect_uri`, `sig`, `t`, `v`, and the OAuth/OIDC parameter set. This list is
-checked *after* pattern matching and wins.
+For the active tab only:
 
-**F3.3 Per-site allowlist.** The toolbar popup offers "Pause on this site". Adding a
-site:
-- stops all rewriting on that origin, immediately and for future visits;
-- restores the original links on the current page without a reload;
-- is stored locally and listed in options, where it can be removed.
+- the current phase — "Entered with a substituted record" or "Interior — stripping";
+- **what was fabricated**, in plain language: *"This site was told you arrived from a
+  newsletter link in an email campaign. You did not."* Showing the lie is a trust
+  requirement — a product that fabricates data and does not show the user what it
+  fabricated is indistinguishable from one that is lying to the user too;
+- counts of links stripped on this page;
+- pause / strip-only / off;
+- report a problem.
 
-**F3.4 Global pause.** A single switch in the popup disables everything until re-enabled.
+Badge shows the per-tab stripped count and can be turned off. All counters are in memory
+and die with the tab.
 
-**F3.5 Report breakage.** Alongside "Pause on this site", a "Report a problem" link
-opens a pre-filled GitHub issue in `url-no-track-me` containing the site's hostname, the
-rules that matched, and the extension and rules versions. Nothing is sent
-automatically — the user sees the text and submits it themselves, or does not.
+### 8.7 Options
 
-### 7.4 Toolbar popup
-
-Shows, for the active tab only:
-
-- links cleaned and parameters removed on this page (session-only, never persisted);
-- which redirectors were unwrapped, if any;
-- **Pause on this site** toggle;
-- **Pause everywhere** toggle;
-- rules version and last-updated timestamp;
-- **Report a problem**.
-
-The toolbar badge shows the per-tab count of cleaned links, and can be turned off.
-
-### 7.5 Options page
-
-- Confidence tiers: `contextual` on/off, `aggressive` on/off (default off).
-- Redirector unwrapping: on/off.
-- `ping` attribute removal: on/off.
-- Badge counter: on/off.
-- Allowlist: view, add, remove, export/import as plain text.
-- Rule updates: on/off, update frequency, **Check now**, current version, source URL.
-- **Reset to defaults.**
-
-### 7.6 Rule updates
-
-**F6.1** The extension ships with a `rules.json` snapshot vendored at build time. It is
-fully functional offline and on first run with no network.
-
-**F6.2** Every 24 hours (configurable; jittered to spread load), the background script
-fetches the latest release asset from `url-no-track-me`.
-
-**F6.3** A fetched bundle is adopted only if **all** of the following pass:
-1. HTTPS, from the configured origin, with a size ceiling (1 MB);
-2. valid JSON;
-3. **Ed25519 signature verifies** against the public key compiled into the extension
-   (via WebCrypto — see §8.6);
-4. schema version is compatible with this extension build (§9.5);
-5. it validates against the bundled JSON Schema;
-6. its `version` is strictly newer than the currently active bundle;
-7. it passes a built-in smoke corpus — a handful of URLs whose expected cleaned form is
-   hard-coded in the extension. If a rule update would mangle `https://example.com/?q=1`,
-   it is rejected.
-
-**F6.4** A bundle failing any check is discarded and the previous bundle stays active.
-Failures are counted locally and surfaced in options as "last update failed"; they are
-never reported anywhere.
-
-**F6.5** The user can roll back to the bundled snapshot from options at any time.
+Substitution on/off · redirector unwrapping on/off · `ping` removal on/off · visit lifetime
+(15 / 30 / 60 minutes) · badge on/off · allowlist and per-site modes (view, add, remove,
+export/import as plain text) · view the bundled taxonomy version · reset to defaults.
 
 ---
 
-## 8. Technical design — the extension
+## 9. The substitution taxonomy
 
-### 8.1 Manifest and structure
+This section is the heart of the product. A fabricated attribution record has value only if
+an analyst looking at it cannot tell it from a real one. That requires two properties:
+every value must be **well-formed for its parameter**, and the values must be **coherent
+with each other**.
 
-Manifest V3 for Firefox. Firefox MV3 uses a **non-persistent event page**, not a service
-worker, which is what this design assumes.
+The taxonomy lives in `data/` in this repository and is versioned with the extension.
+
+### 9.1 Parameter classes
+
+| Class | Examples | Substitution strategy |
+|---|---|---|
+| **C1 Closed-vocabulary semantic** | `utm_source`, `utm_medium`, `ref`, `source`, `platform` | Draw a different value from the same real-world vocabulary, subject to coherence constraints |
+| **C2 Open-vocabulary semantic** | `utm_campaign`, `utm_term`, `utm_content` | Generate from naming-convention templates observed in the wild, seeded per visit |
+| **C3 Opaque vendor token** | `fbclid`, `gclid`, `msclkid`, `ttclid`, `igshid`, `mc_eid` | Generate a value conforming to that vendor's grammar (§9.3) |
+| **C4 Unrecognized but tracking-shaped** | anything matching `*_source`, `*_campaign`, `*clid`, `*_id` heuristics | Shape-preserving substitution from the observed value itself (§9.6) |
+| **C5 Never-touch** | `q`, `id`, `token`, `code`, `state`, `redirect_uri`, `sig`, OAuth/OIDC set, affiliate tags | Left exactly as found; their presence suppresses substitution for the whole URL |
+
+### 9.2 Closed vocabularies (C1)
+
+Each C1 parameter carries a vocabulary of real, commonly-observed values and a class label:
+
+```jsonc
+{
+  "param": "utm_source",
+  "values": [
+    { "v": "newsletter",   "channel": "email" },
+    { "v": "mailchimp",    "channel": "email" },
+    { "v": "reddit",       "channel": "social" },
+    { "v": "twitter",      "channel": "social" },
+    { "v": "linkedin",     "channel": "social" },
+    { "v": "google",       "channel": "search" },
+    { "v": "bing",         "channel": "search" },
+    { "v": "partner-site", "channel": "referral" }
+  ]
+}
+```
+
+The `channel` label is what makes coherence possible: values are not drawn independently,
+they are drawn from a channel chosen once per visit.
+
+### 9.3 Vendor grammars (C3)
+
+Each opaque token gets a grammar describing how real values of that parameter are shaped —
+alphabet, length, structural prefix, encoding — so a generated value passes any
+client-side or ingest-side validation and looks native in the tracker's own logs.
+
+```jsonc
+{
+  "param": "msclkid",
+  "grammar": { "alphabet": "hex-lower", "length": 32 },
+  "verified": "2026-09-15",
+  "samples": 40
+}
+```
+
+| Parameter | Shape (illustrative — see the note below) |
+|---|---|
+| `msclkid` | fixed-length lowercase hex |
+| `fbclid` | structural prefix + base64url body, length varies by generation |
+| `gclid` / `dclid` | base64url, wide length range, recognizable leading bytes |
+| `igshid` | short base64url |
+| `mc_eid` | short hex |
+| `ttclid` / `twclid` / `yclid` | vendor-specific; to be characterized |
+
+> **These shapes are illustrative and must not be implemented from this table.** Each
+> grammar is to be derived empirically during M1 from a corpus of at least 30 observed
+> real values per parameter, recorded with the date observed and re-verified before each
+> release. A grammar with no verified sample count does not ship; the parameter falls back
+> to C4 shape-preserving substitution, which requires no vendor knowledge at all.
+
+Grammars describe *structure only*. No grammar ever encodes a real identifier, and no
+generated value is drawn from, derived from, or collided with a real user's token (§11.4).
+
+### 9.4 The coherence engine
+
+At entry, the extension derives a **visit persona** from the visit seed:
+
+```
+seed ──► channel        (email | social | search | referral | display)
+     ──► source         drawn from vocabulary ∩ channel
+     ──► medium         drawn from the channel's allowed mediums
+     ──► campaign shape template + slug vocabulary
+     ──► token values   generated per §9.3, consistent with the channel
+```
+
+Constraints the persona must satisfy:
+
+1. **Channel agreement.** `utm_medium=cpc` never pairs with `utm_source=newsletter`.
+   `utm_medium=email` never pairs with `utm_source=google`.
+2. **Token agreement.** A `gclid` is only emitted alongside a search or display channel; an
+   `fbclid` only alongside social. If the incoming URL carries a token whose vendor
+   contradicts the drawn channel, **the channel is redrawn to match the token** — the
+   incoming parameter set is the stronger constraint, because it is the thing whose shape
+   must be preserved (F1.3).
+3. **Campaign plausibility.** Campaign slugs come from templates that mirror real naming
+   conventions — `{season}-{year}-{theme}`, `{product}_{geo}_{quarter}` — not random
+   strings.
+4. **Temporal plausibility.** Date-like fragments in campaign names use the current
+   quarter and year. A campaign named for a season three years ago is a tell.
+5. **Stability within the visit.** Every URL substituted during a visit uses the same
+   persona. A site that receives two different entry stories in one session learns that
+   something is fabricating them.
+
+The output for one visit might be:
+
+```
+utm_source=newsletter  utm_medium=email  utm_campaign=fall-2026-longform
+utm_content=body-link  mc_eid=<grammar-conforming hex>
+```
+
+Every value is false. Nothing in the set contradicts anything else in it.
+
+### 9.5 The never-touch list (C5)
+
+Checked **after** every other rule, and it wins unconditionally. A URL containing any of
+these is passed through entirely untouched — no substitution, no stripping:
+
+- **Auth and state** — `token`, `access_token`, `id_token`, `code`, `state`, `nonce`,
+  `redirect_uri`, `client_id`, `scope`, `session`, `sid`, `auth`, `sig`, `signature`,
+  `expires`, `X-Amz-*`, `Key-Pair-Id`.
+- **Function** — `q`, `query`, `s`, `search`, `id`, `page`, `p`, `offset`, `limit`, `sort`,
+  `lang`, `locale`, `v`, `t`.
+- **Commerce** — affiliate tags, partner ids, referral codes, coupon and discount codes.
+  See §11.1: these are a hard prohibition, not a heuristic.
+
+Because substitution can cause a site to act on a wrong value rather than fall back to a
+default, this list is deliberately **broader** than the equivalent list in v1.0, and
+ambiguity resolves toward inclusion.
+
+### 9.6 Shape-preserving fallback (C4)
+
+This is the "if no logical other is identified, replace with a different keyword" case. The
+extension does not know what the parameter means, so it derives the substitute from the
+value it was given:
+
+| Observed value | Substitute |
+|---|---|
+| A dictionary word or hyphenated phrase | A **different** word or phrase from a generic vocabulary of comparable length, coherent with the visit persona's channel where possible |
+| A pure integer | A different integer of the same digit count |
+| Fixed-length hex | Different hex of the same length |
+| base64url-looking token | Different token, same length and alphabet |
+| A UUID | A different well-formed UUID of the same version |
+| Anything else | Left untouched |
+
+The fallback is **never** applied to a parameter that is not first recognized as
+tracking-shaped by name, and never to a C5 name. An unrecognized parameter with an
+unrecognized name is left alone — that is the conservative default, and it is the common
+case.
+
+### 9.7 Maintaining the taxonomy in-repo
+
+There is no external database, but the quality gates from v1.0 survive as CI in this
+repository, because the taxonomy needs them more than a strip-list did:
+
+- **Schema validation** of every file in `data/`.
+- **Lint** — duplicate entries, vocabulary values with no channel, grammars with no
+  verified sample count, C5 collisions.
+- **Invariant corpus** — URLs that must come back byte-identical: OAuth callbacks, signed
+  S3 URLs, search queries, payment returns, checkout flows. Every taxonomy change must add
+  to it.
+- **Coherence corpus** — seeded persona generations with asserted outputs, so a vocabulary
+  edit cannot silently start emitting `utm_medium=email` with `utm_source=google`.
+- **Plausibility review** — a human reads a sample of 50 generated records before each
+  release and answers one question: would this look real in an analytics table? This is a
+  judgment gate and it is not automatable.
+
+---
+
+## 10. Technical design
+
+### 10.1 Structure
+
+Manifest V3 for Firefox, which uses a non-persistent **event page** rather than a service
+worker.
 
 ```
 please-no-track-me/
   manifest.json
   src/
-    background.js      event page: alarms, update fetch, verify, swap, message hub
+    background.js        event page: visit registry, navigation interception, message hub
+    visits.js            visit lifecycle, seeds, persona derivation, expiry
     engine/
-      clean.js         pure URL → URL cleaning; no DOM, no browser API
-      match.js         host/param matching, glob compilation, never-strip check
-      unwrap.js        redirector extraction with the §7.2 safety gates
+      classify.js        URL → which parameters, which class, which phase
+      substitute.js      persona → values; grammars; shape-preserving fallback
+      strip.js           interior stripping
+      unwrap.js          redirector extraction + §8.4 safety gates
+      rng.js             seeded deterministic RNG (a visit is reproducible from its seed)
     content/
-      content.js       DOM traversal, MutationObserver, rewriting
+      content.js         DOM traversal, MutationObserver, rewriting
     ui/
-      popup.html/.js
+      popup.html/.js     phase, the fabricated record in plain language, controls
       options.html/.js
-  rules/
-    rules.json         vendored snapshot from url-no-track-me
-    rules.schema.json  vendored schema
-    pubkey.json        Ed25519 public key (raw, in-source)
+  data/
+    vocabularies.json    C1 closed vocabularies with channel labels
+    grammars.json        C3 vendor grammars, with verification dates and sample counts
+    campaigns.json       C2 naming templates and slug vocabularies
+    redirectors.json     wrapper hosts, extraction, unwrappable flag
+    tracking-params.json names recognized as tracking, with scope and class
+    never-touch.json     C5
+    strip-only.json      sensitive origin classes (§11.2)
   test/
-    engine.test.js     runs the url-no-track-me corpus against clean.js
+    invariants/          must-not-change corpus
+    coherence/           seeded persona assertions
+    bench/               the F3.5 performance budget
 ```
 
-`engine/clean.js` is deliberately pure and dependency-free: the same module runs in the
-extension, in unit tests, and in the rules repo's CI as the reference implementation.
+The `engine/` modules are pure and dependency-free: same code in the extension, in tests,
+and in the CI corpus runner.
 
-### 8.2 Permissions and their justification
+### 10.2 Permissions
 
-| Permission | Why | AMO justification |
-|---|---|---|
-| `storage` | Settings, allowlist, cached rules | Local only |
-| `alarms` | Daily rule update check | No other scheduler in an event page |
-| `<all_urls>` host permission | The content script must run wherever links appear | Unavoidable for the core function; no data is read from pages beyond link URLs, and none leaves the browser |
-| `https://github.com/generalandrew/url-no-track-me/*` (or the release CDN host) | Fetch rule updates | Single fixed origin, data only, signature-verified |
+| Permission | Why |
+|---|---|
+| `storage` | Settings, allowlist, per-site modes |
+| `webRequest`, `webRequestBlocking`, or `declarativeNetRequestWithHostAccess` | Entry substitution on top-level navigation (§7.3A) — the mechanism is chosen at M2 |
+| `<all_urls>` host permission | Entries and links can occur anywhere |
 
-Not requested: `tabs` (the active tab's URL comes from the content script's own
-message), `webRequest`, `declarativeNetRequest`, `clipboardWrite`, `cookies`, `history`,
-`downloads`.
+Not requested: `tabs`, `cookies`, `history`, `downloads`, `clipboardWrite`, `management`,
+`nativeMessaging`. **No network permission of any kind** — the extension has no endpoint to
+talk to.
 
-### 8.3 The cleaning engine
+`webRequest` is the heaviest ask and the one that determines the AMO review. §16.1 records
+the alternative if it is refused.
+
+### 10.3 The pipeline
 
 ```
-clean(url, ctx) → { url, removed[], unwrapped? }
-
-  1. parse; bail out on non-http(s), on opaque origins, on javascript:/data:
-  2. if host ∈ redirector catalog and unwrapping enabled:
-         candidate ← extract per rule
-         if passes §7.2 gates: url ← candidate; recurse (depth ≤ 3)
-  3. path rules for this host (e.g. Amazon /ref=…) → rewrite path
-  4. for each query parameter:
-         if name ∈ never-strip           → keep
-         else if certain-tier match      → drop
-         else if contextual match ∧ host in scope → drop
-         else if aggressive enabled ∧ shape match → drop
-         else                            → keep
-  5. fragment parameters: same treatment, only for hosts with a fragment rule
-  6. reserialize preserving original parameter order and encoding of survivors;
-     drop the '?' entirely if no parameters remain
-  7. if the result fails to parse, return the input unchanged
+top-level navigation to URL
+  │
+  ├─ allowlisted / strip-only / never-touch present? ──► pass through unchanged
+  │
+  ├─ redirector? ──► unwrap (≤3 deep, §8.4 gates) ──► continue with destination
+  │
+  ├─ URL already emitted by our own content script for this visit? ──► pass through
+  │
+  ├─ active visit on this registrable domain?
+  │     │
+  │     ├─ NO  ──► ENTRY
+  │     │          open visit, generate seed, derive persona (§9.4)
+  │     │          substitute every recognized tracking value, preserve names/order/count
+  │     │          redirect to the substituted URL
+  │     │
+  │     └─ YES ──► INTERIOR
+  │                strip recognized tracking parameters
+  │
+  └─ any exception ──► original URL, untouched
 ```
 
-**Encoding discipline.** Parameters are split on `&`/`=` without decoding, matched on
-the decoded name, and re-emitted with their original raw value bytes. Round-tripping
-through `URLSearchParams` is avoided because it normalises `+`, `%20` and repeated keys
-in ways that break signed URLs.
+Every failure path is "leave it alone". There is no state in which a malformed
+substitution is preferred to the original URL.
 
-**Glob compilation.** Remote patterns use a restricted glob (`*` and `?` only, max
-length 64, max 4 wildcards) compiled internally to an anchored regex. Raw regular
-expressions from the rules file are **not supported by the schema**, which removes both
-the ReDoS surface and the "is this remote code?" review question.
+### 10.4 Determinism and the seed
 
-### 8.4 Content script
+`rng.js` is a seeded PRNG, so a visit's entire persona is reproducible from its seed. This
+matters for three reasons: coherence within the visit is free; the coherence corpus can
+assert exact outputs; and a breakage report can carry a seed that reproduces the exact
+fabricated record without carrying the user's URL history.
+
+Seeds come from `crypto.getRandomValues`, live in memory, and are never persisted.
+
+### 10.5 Content script
 
 ```
 document_idle
   ↓
-initial sweep: querySelectorAll('a[href], area[href]') + open shadow roots
+initial sweep: a[href], area[href], plus open shadow roots
   ↓
 MutationObserver { childList, subtree, attributes, attributeFilter: ['href','ping'] }
   ↓
-batch queue → requestIdleCallback → process with a time slice
+batch → requestIdleCallback → time-sliced processing
   ↓
-per element: WeakSet check → engine.clean() → set href if changed → record original
+per element:  WeakSet check
+              → same registrable domain as an active visit?  strip
+              → cross-domain, no active visit?               substitute (persona for that
+                                                             domain's visit-to-be, recorded
+                                                             with the background)
+              → write href only if changed; retain original in WeakMap
 ```
 
-- `all_frames: true`, `match_about_blank: true`.
-- Cleaned elements go into a `WeakSet`; the observer's own writes are ignored by
-  comparing against the value the script last wrote.
-- The rules bundle and settings are pushed to content scripts by the background page on
-  change, so no per-page message round-trip is on the hot path.
-- Counts are reported to the background page throttled at 1 Hz, per tab, in memory only.
+`all_frames: true`, `match_about_blank: true`. The observer ignores its own writes by
+comparing against the last value written. Settings and taxonomy are pushed from the
+background on change, so nothing is on the per-page hot path.
 
-**Known limitation.** Sites that attach `mousedown`/`click` handlers to rebuild the URL
-at click time (Google Search historically, some SPAs) can re-add parameters after the
-rewrite. The `ping` removal and the rewritten href cover hover, copy and middle-click on
-those sites; full coverage of handler-rebuilt navigations requires request interception
-and is deferred to v2 (N1).
+**Known limitation.** Sites that rebuild the URL in a `mousedown`/`click` handler can
+re-add parameters after rewriting. Navigation-time interception (§7.3A) catches those on
+arrival, which is precisely why the two mechanisms are both present — B improves what the
+user sees and copies, A guarantees what the site receives.
 
-### 8.5 Storage
+### 10.6 Storage
 
 | Key | Area | Contents |
 |---|---|---|
-| `settings` | `storage.sync` | Tiers, toggles, badge, update interval |
-| `allowlist` | `storage.sync` | Array of origins |
-| `rules.active` | `storage.local` | The active bundle |
-| `rules.meta` | `storage.local` | Version, fetched-at, source, last failure |
+| `settings` | `storage.sync` | Toggles, visit lifetime, badge |
+| `allowlist` | `storage.sync` | Origins and per-site modes |
+| *(none)* | `storage.local` | Nothing. The taxonomy is bundled; visits are in memory. |
 
-Nothing else is stored. Per-tab counters live in memory and die with the tab. No
-browsing history is written to disk in any form.
-
-### 8.6 Update integrity
-
-`url-no-track-me` CI signs each released `rules.json` with an Ed25519 key held as a
-repository secret. The corresponding public key is compiled into the extension and
-therefore changes only through an AMO-reviewed release.
-
-Verification uses `crypto.subtle.importKey('raw', …, {name:'Ed25519'}, …)` and
-`crypto.subtle.verify` over the exact bytes fetched — canonicalisation is avoided by
-signing the byte stream that is served, not a re-serialisation of it.
-
-Consequences of this design:
-- A compromise of the rules repo, the release, or the transport cannot inject rules — it
-  can at most withhold updates.
-- A compromise of the signing key can still ship bad *data*, but never *code*, and the
-  smoke corpus (F6.3.7) and never-strip list (F3.2) bound the damage.
+No browsing history is written to disk in any form, and no record of any fabricated
+persona survives the browser session.
 
 ---
 
-## 9. Data contract — `url-no-track-me`
+## 11. Ethics, safety, and the AMO posture
 
-The rules repository is a product in its own right, with its own README, license
-(CC0-1.0 for the data, MIT for the tooling), issue templates and release notes.
+This product deliberately sends false data to third parties. That deserves a clear-eyed
+section rather than a sentence, because it is the difference between this and every
+subtractive privacy tool, and it is what an AMO reviewer will ask about.
 
-### 9.1 Repository layout
+**The position.** Spoofing what you disclose about yourself to a party collecting it
+without meaningful consent is long-established browser practice — user-agent spoofing,
+referrer trimming, Do Not Track, `resistFingerprinting` — and the tracking parameters here
+are data *about the user*, attached to *the user's own request*. Misreporting how you
+arrived is a statement about yourself, and the user is entitled to make it. The boundaries
+below are where that entitlement stops.
 
-```
-url-no-track-me/
-  rules/
-    params.certain.json      globally tracking-only parameters
-    params.contextual.json   per-domain parameter rules
-    params.aggressive.json   shape patterns, opt-in
-    redirectors.json         wrapper hosts and destination extraction
-    paths.json               path-segment rules (Amazon /ref=, etc.)
-    never-strip.json         the protected parameter list
-  schema/
-    rules.schema.json        JSON Schema (draft 2020-12)
-  tests/
-    corpus/*.jsonl           dirty → clean pairs, one per line
-    invariants.jsonl         URLs that must come back byte-identical
-  tools/
-    build.mjs                merge + normalise → dist/rules.json
-    validate.mjs             schema + lint + duplicate detection
-    regress.mjs              run corpus through the reference engine
-  dist/                      built artifacts (gitignored; attached to releases)
-  CONTRIBUTING.md  GOVERNANCE.md  CHANGELOG.md  LICENSE
-```
+### 11.1 Hard prohibitions
 
-### 9.2 Rule schema (illustrative)
+These are enforced in code and in the taxonomy schema, not left to rule authors:
 
-```jsonc
-// params.contextual.json
-{
-  "schemaVersion": "1.0",
-  "rules": [
-    {
-      "id": "youtube-si",
-      "param": "si",
-      "tier": "contextual",
-      "domains": ["youtube.com", "youtu.be", "music.youtube.com"],
-      "includeSubdomains": true,
-      "evidence": "Share-sheet attribution token; playback unaffected when removed.",
-      "added": "2026-09-04",
-      "source": "https://github.com/generalandrew/url-no-track-me/issues/12"
-    }
-  ]
-}
-```
+1. **Never move money.** Affiliate tags, referral codes, partner ids, coupon and discount
+   codes are never substituted, and a redirector whose removal changes a commercial
+   outcome is never unwrapped. Substituting one affiliate's tag for another's redirects
+   somebody's commission — that is fraud, not privacy. This is the single most important
+   line in the document.
+2. **Never touch authentication or state.** §9.5. A fabricated `state` or `code` is an
+   attack on the user's own session.
+3. **Never impersonate an identifiable person.** No generated value is derived from,
+   seeded by, or colliding with another real user's identifier. Fabricated tokens are
+   structurally valid and semantically empty.
+4. **Never fabricate on sensitive origins.** §11.2.
+5. **Never fabricate silently to the user.** The popup states plainly what the site was
+   told (§8.6). The user is the one party this product is never allowed to mislead.
 
-```jsonc
-// redirectors.json
-{
-  "schemaVersion": "1.0",
-  "rules": [
-    {
-      "id": "facebook-lphp",
-      "hosts": ["l.facebook.com", "lm.facebook.com", "l.messenger.com"],
-      "pathPrefix": "/l.php",
-      "destination": { "kind": "param", "name": "u", "encoding": "uri" },
-      "unwrappable": true,
-      "evidence": "Wrapper is a logging hop; destination is reachable directly."
-    },
-    {
-      "id": "example-signed-exit",
-      "hosts": ["exit.example.com"],
-      "destination": { "kind": "param", "name": "url", "encoding": "uri" },
-      "unwrappable": false,
-      "evidence": "Wrapper carries an HMAC the destination validates; unwrapping 403s."
-    }
-  ]
-}
-```
+### 11.2 Strip-only origins
 
-Every rule carries `id`, `tier` (or `unwrappable`), `evidence` and `added`. **A rule
-without evidence does not merge** — the field is what makes the catalog reviewable by
-people who did not write it.
+A bundled class list where fabrication is disabled and only stripping applies: banking and
+payments, healthcare and pharmacy, government and tax, education enrolment, and any origin
+the user marks strip-only. The reasoning is that these are the contexts where an unexpected
+value is most likely to be acted on rather than merely logged, and where the consequences
+of being wrong are borne by the user.
 
-### 9.3 Test corpus
+### 11.3 AMO review
 
-`tests/corpus/*.jsonl` — one object per line:
+The listing will state, in the first paragraph of the description, that the extension
+replaces tracking parameters with fabricated values, and the privacy policy will say the
+same. Nothing about the mechanism is concealed from the user or the reviewer. The review
+will turn on the `webRequest` permission (§10.2) and on the honesty of the disclosure; both
+are addressed by design rather than by argument.
 
-```json
-{"in":"https://ex.com/a?utm_source=x&id=7","out":"https://ex.com/a?id=7","why":"utm stripped, id kept"}
-```
+Specific review points to pre-empt: no remote code and no remote data of any kind; no
+`eval`, `Function`, `innerHTML` with non-literal content, or `RegExp` built from
+non-bundled strings; default MV3 CSP retained; every taxonomy file treated as trusted
+bundled data and still schema-validated at load.
 
-`tests/invariants.jsonl` is the more important file: URLs that must survive **unchanged**
-— OAuth callbacks, signed S3 URLs, search queries, paginated listings, payment returns.
-The invariant corpus is the concrete form of principle #1, and every contextual or
-aggressive rule proposal must add to it.
+### 11.4 What this product is not
 
-### 9.4 CI gates
-
-Every pull request must pass:
-
-1. **Schema validation** of every rules file.
-2. **Lint** — duplicate ids, duplicate params within a domain scope, missing `evidence`,
-   malformed domains, glob patterns exceeding the complexity limits.
-3. **Never-strip conflict check** — a rule that would strip a protected parameter fails.
-4. **Regression** — the full corpus and the full invariant set, run through the reference
-   engine vendored from the extension.
-5. **Diff summary** — the CI comment states, in plain language, exactly which parameters
-   this PR starts or stops removing.
-
-### 9.5 Versioning, releases and compatibility
-
-- The bundle carries **`schemaVersion` (major.minor)** and **`version` (date-based, e.g.
-  `2026.09.04`)**.
-- The extension accepts a bundle whose `schemaVersion` **major** equals its own and whose
-  **minor** is less than or equal to its own **plus tolerance**: unknown optional fields
-  are ignored, unknown rule kinds are skipped. A major bump means old extensions keep
-  their last-known-good bundle and stop updating until they are themselves updated —
-  fail-safe, never fail-open.
-- Tagging a release runs `build → validate → regress → sign → publish`, attaching
-  `rules.json` and `rules.json.sig` to a GitHub Release. The extension fetches the
-  `latest` release asset.
-- The extension repo has a scheduled job that vendors the newest released bundle into
-  `rules/rules.json` and opens a PR, so each AMO release ships a fresh snapshot.
-
-> **Note on scope.** Published, signed release artifacts were not among the rules-repo
-> items selected during scoping, but the chosen delivery model (bundled snapshot +
-> periodic fetch) requires a stable, verifiable artifact to fetch. They are therefore
-> included as a dependency of that decision rather than as an independent one.
-
-### 9.6 Governance
-
-`GOVERNANCE.md` states the review policy:
-
-- Two categories of change: **`certain` additions** (one maintainer approval) and
-  **`contextual`/`aggressive`/redirector additions** (evidence required plus an invariant
-  test, one maintainer approval).
-- Removals of rules that break sites are **fast-tracked** — a breakage report with a
-  reproduction can revert a rule immediately, and the discussion happens afterwards.
-- Issue templates: *New tracker spotted*, *A site broke*, *Rule is too aggressive*.
-- The data is CC0; contributors are asked to confirm their submission is their own
-  observation and not copied from another project's licensed rule set.
+It is not a coordinated poisoning campaign. There is no shared value pool, no
+synchronization between installations, and no attempt to maximize aggregate damage to any
+particular company's data (N6). Each installation makes local choices about its own
+traffic. The distinction matters legally and ethically: an individual misreporting their
+own arrival is exercising a choice about their own data; a coordinated system engineered to
+degrade a specific target's systems is something else, and this product declines to be it.
 
 ---
 
-## 10. Privacy and security
+## 12. Privacy
 
-**What the extension collects: nothing.** No analytics, no crash reporting, no
-identifiers, no remote logging, no "anonymous usage statistics".
+**Collected: nothing.** No analytics, no crash reporting, no identifiers, no "anonymous
+usage statistics".
 
-**What it sends over the network:** one HTTPS GET per day to a fixed URL in the rules
-repository, carrying no query parameters, no headers identifying the user, and no
-information about what they browse. This is the only outbound request the extension ever
-makes.
+**Sent: nothing.** v2.0 has no update channel and no endpoint. The extension makes zero
+outbound requests. This is a strict improvement over v1.0's daily rule fetch.
 
-**What it reads from pages:** link URLs, from the DOM, in the content script. Page text,
-form contents, cookies and storage are never accessed.
+**Read from pages:** link URLs, from the DOM. Page text, form contents, cookies and storage
+are never accessed.
 
-**What it stores:** settings, the allowlist, and the rules bundle. Per-tab counters live
-in memory only.
-
-**Threat model for the update channel** is covered in §8.6: signature verification means
-the update channel can withhold rules but cannot introduce them, and can never introduce
-code.
-
-**Security review checklist for each release:** no `eval`, no `Function`, no
-`innerHTML` with non-literal content, no remote script, no `RegExp` built from remote
-strings, CSP left at the MV3 default, all rule input treated as untrusted.
+**Stored:** settings and the allowlist. Visits, seeds, personas and counters are in memory
+and die with the browser session.
 
 ---
 
-## 11. Success metrics
+## 13. Success metrics
 
-No telemetry means success is measured from public and local signals only:
+No telemetry, so everything is public or local:
 
 | Metric | Source | Target at 6 months |
 |---|---|---|
 | AMO installs (active daily users) | AMO stats | 2,000 |
 | AMO rating | AMO | ≥ 4.5 with ≥ 25 reviews |
-| Breakage reports open at any time | `url-no-track-me` issues | < 5, median time-to-revert < 24 h |
-| Rules coverage | rule count + corpus size | ≥ 400 parameters, ≥ 1,000 corpus cases |
-| External contributors to the rules repo | GitHub | ≥ 10 distinct |
-| Downstream consumers of the catalog | GitHub dependents / issues | ≥ 1 outside this project |
-| Update reachability | manual sample | a rule merged today is live in installs within 48 h |
+| Open breakage reports at any time | GitHub issues | < 5, median time-to-fix < 24 h |
+| Taxonomy coverage | repo | ≥ 250 tracking parameters classified, ≥ 8 vendor grammars verified |
+| Invariant corpus | repo | ≥ 500 must-not-change URLs |
+| **Plausibility** | quarterly manual review | ≥ 90% of a 50-record sample judged indistinguishable from real by a reviewer who did not generate it |
 
-The leading indicator for the whole product is the **ratio of breakage reports to
-installs**. If it rises, the default tiers are too aggressive, regardless of what the
-other numbers say.
-
----
-
-## 12. Milestones
-
-**M0 — Foundations (week 1).** Both repos initialised. This document. Rules schema
-drafted. `clean.js` reference engine with a first corpus. No UI.
-
-**M1 — Cleaning works (weeks 2–3).** Content script, MutationObserver, engine wired to
-the bundled snapshot. `certain` tier only. Manual verification against a hand-built test
-page. Loadable as a temporary add-on.
-
-**M2 — Redirectors and safety (week 4).** Unwrapping with all §7.2 gates. Never-strip
-list. Invariant corpus in CI. `contextual` tier enabled.
-
-**M3 — UI and control (week 5).** Popup, badge, per-site allowlist, options page,
-breakage reporting link.
-
-**M4 — Update channel (week 6).** Release pipeline in `url-no-track-me` with signing.
-Background fetch, verification, smoke corpus, rollback. End-to-end test: merge a rule,
-see it live in a running profile.
-
-**M5 — AMO submission (week 7).** Permission justifications, listing copy, screenshots,
-privacy policy, source-availability statement. Submit.
-
-**M6 — Post-launch (weeks 8–12).** Breakage triage cadence, corpus growth, contributor
-onboarding, decision on v2 scope (N1 request interception, N6 address-bar cleaning,
-N3 cross-browser).
+The leading indicator is the **breakage-to-install ratio**. The defining one is
+**plausibility** — it is the only metric that measures whether the product's premise is
+being delivered, and a product that scores badly on it is a subtractive tool wearing a
+costume.
 
 ---
 
-## 13. Risks
+## 14. Milestones
+
+**M0 — Foundations (week 1).** This document. Taxonomy schemas. `classify.js` and the
+invariant corpus. `url-no-track-me` deleted. No UI.
+
+**M1 — Taxonomy (weeks 2–3).** Vocabularies with channel labels, campaign templates,
+coherence engine, seeded RNG, coherence corpus. Vendor grammars derived empirically from
+observed samples with verification dates. First plausibility review.
+
+**M2 — Entry substitution (week 4).** Choose the interception mechanism (`webRequest`
+blocking vs `declarativeNetRequest` redirect), visit registry, navigation handler, loop
+guard, never-touch and strip-only enforcement. End-to-end: click a `utm`-laden link, watch
+a coherent false record arrive.
+
+**M3 — Interior and links (week 5).** Content script, MutationObserver, stripping,
+cross-origin substitution with background bookkeeping, `ping` removal, performance
+benchmark in CI.
+
+**M4 — Redirectors (week 6).** Unwrapping with all §8.4 gates, then entry substitution of
+the destination. Commercial-outcome wrappers catalogued as not unwrappable.
+
+**M5 — UI and control (week 7).** Popup including the plain-language statement of what was
+fabricated, per-site modes, options, breakage reporting.
+
+**M6 — AMO submission (week 8).** Permission justifications, listing copy leading with the
+substitution disclosure, privacy policy, screenshots, source-availability statement.
+
+**M7 — Post-launch (weeks 9–12).** Breakage triage, grammar re-verification cadence,
+quarterly plausibility review, decision on v3 scope.
+
+---
+
+## 15. Risks
 
 | # | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|---|
-| R1 | A rule breaks a high-traffic site; users uninstall before reporting | Medium | High | Conservative default tiers; invariant corpus; one-click site pause offered in the popup before the user reaches the uninstall button; fast-track reverts |
-| R2 | AMO reviewer treats the remote rules fetch as remote code | Medium | High | Data-only schema with no regex or executable field; signature verification; explicit reviewer note; bundled snapshot means the extension is fully functional if the fetch is disallowed |
-| R3 | Content script cost is visible on link-heavy pages | Low | Medium | Time-sliced batching, `requestIdleCallback`, `WeakSet` dedupe, explicit budget in F1.6 with a benchmark in CI |
-| R4 | Sites rebuild URLs at click time, so cleaning appears not to work | High | Medium | Documented limitation; `ping` removal and clean hover/copy still deliver most of the value; v2 request interception is the real fix |
-| R5 | Rules repo attracts no contributors and stagnates | Medium | Medium | Very low barrier to contribute (a JSON line + a test line); issue templates that turn a user complaint into a near-complete PR |
-| R6 | Signing key compromise | Low | High | Key in CI secrets only, never on a developer machine; rotation requires an extension release, which is the intended cost; smoke corpus and never-strip list bound the blast radius |
-| R7 | Overlap with ClearURLs makes the product look redundant | Medium | Low | The differentiators are in-page rewriting and the standalone catalog; the listing copy leads with both |
-| R8 | Unwrapping a wrapper that carries required auth breaks the click | Medium | Medium | `unwrappable: false` in the catalog, absolute rejection of anything unparsable, depth limit, and evidence required on every redirector rule |
+| R1 | A substituted value breaks a site in a way stripping would not have | Medium | **High** | Broad never-touch list; whole-URL bail-out when any C5 parameter is present; strip-only origins; one-click per-site pause offered before the user reaches the uninstall button |
+| R2 | AMO rejects the `webRequest` permission or the substitution premise | Medium | **High** | Disclose in the first line of the listing; no remote code or data at all; documented fallback to in-page-only (§16.1) which needs no such permission |
+| R3 | Fabricated records are obviously synthetic and get filtered in one query | Medium | **High** — it is the whole premise | Coherence engine; empirically derived grammars; shape and count preservation; a human plausibility gate before every release |
+| R4 | Vendor grammars drift and generated tokens stop validating | High | Medium | Verification dates and sample counts in `grammars.json`; a stale grammar automatically degrades to C4 shape-preserving rather than emitting a wrong shape |
+| R5 | Someone builds an affiliate-fraud path through the substitution engine | Low | **Severe** | §11.1 prohibition enforced in schema and code; commerce parameters in C5; no unwrapping of commercial wrappers; reviewed on every taxonomy change |
+| R6 | Navigation interception introduces a redirect loop | Medium | High | Per-request-id single rewrite, per-tab rate limit, automatic self-disable with a visible notice (F1.6) |
+| R7 | Users perceive the extension as lying *to them* | Medium | Medium | Popup states exactly what each site was told, in plain language; the fabrication is never concealed |
+| R8 | Handler-rebuilt URLs defeat in-page rewriting | High | Low in v2.0 | Navigation-time interception catches arrivals regardless of how the URL was built |
+| R9 | Entry/interior boundary is wrong for SPAs and multi-domain properties | Medium | Medium | Registrable-domain scoping rather than origin; visit expiry tuned during M3; user-visible phase indicator in the popup makes misclassification reportable |
 
 ---
 
-## 14. Open questions
+## 16. Open questions
 
-1. **Release asset vs. CDN.** Fetching a GitHub Release asset is the simplest verifiable
-   source; jsDelivr would be cheaper and faster but adds a third party to the chain.
-   Signature verification makes the transport untrusted either way, so this is a
-   performance and reliability question, not a security one. *Decide at M4.*
-2. **Should `contextual` be on by default?** This document says yes, because most of the
-   real-world benefit (YouTube `si`, Amazon `ref`) lives there. Revisit if the
-   breakage-to-install ratio moves.
-3. **Fragment-parameter cleaning** (`#utm_source=…`) is specified but rare. Ship in M2 or
-   defer to post-launch based on corpus evidence.
-4. **Extension name.** `please-no-track-me` is the repository and working name. The AMO
-   listing name is decided at M5 and need not match.
+**16.1 If `webRequest` is refused.** The fallback is in-page rewriting only: entries that
+begin with a click on another web page still get a substituted record, and everything else
+gets nothing. That is a materially smaller product, and it fails the newsletter case in
+§U1. If AMO pushes back, the choice is between that reduction and a self-hosted signed XPI
+outside the store. *Decide at M6, with a preference for reduction over leaving the store.*
+
+**16.2 Visit lifetime.** 30 minutes is a guess borrowed from analytics session conventions.
+Too short and a single reading session produces two contradictory entry records — the exact
+tell §9.4.5 exists to prevent. Too long and stale visits suppress substitution on genuinely
+new arrivals. *Instrument locally during M3 and pick from observation, not from convention.*
+
+**16.3 Scope of the visit key.** Registrable domain is the right default, but large
+properties span domains (`google.com` / `youtube.com`) and CDNs share them. A property map
+would be more accurate and is more maintenance. *Ship eTLD+1; revisit if breakage reports
+point at it.*
+
+**16.4 Should interior stripping ever fabricate?** Currently no — interior is strip-only by
+design (§3.2). Sites with internal `?ref=` tracking arguably deserve the same treatment as
+entry. *Deferred; the one-lie-per-visit principle argues against it and nothing yet argues
+for it.*
+
+**16.5 Grammar verification without collecting data.** Grammars must be derived from real
+observed values, but this product collects nothing. Samples therefore come from the
+maintainers' own browsing and from public documentation, recorded by hand in the repo.
+*This bounds how fast grammars can be verified and is accepted.*
 
 ---
 
-## 15. Appendix — decisions of record
+## 17. Decisions of record
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Intervention point | In-page link rewriting + redirector unwrapping | Cleans what you see, copy and click in one place; no request-blocking permissions |
-| Rule source | Separate open-source repo `url-no-track-me` | Independent release cadence, wider contributor pool, reusable dataset |
-| Rule delivery | Bundled snapshot + periodic signed fetch | Works offline and on day one; rules ship in hours, not weeks |
-| Breakage posture | Conservative defaults + per-site allowlist | A false positive costs a user; a false negative costs a parameter |
-| Platform | Firefox MV3, AMO listed | Firefox retains the capabilities this needs; AMO gives distribution and auto-update |
-| Rules repo scope | Schema + CI validation, regression corpus, contribution governance | Makes the data trustworthy and the project contributable |
-| Telemetry | None | The product's premise forbids it |
+| Core behavior | Substitute at entry, strip thereafter | Attribution is captured on arrival; one coherent lie beats continuous noise |
+| Substitution quality bar | Format-conforming and semantically coherent | A forgery that is filtered out in one query has no value |
+| Opaque tokens | Vendor-grammar generation, empirically verified, C4 fallback when unverified | "Looks logical and could be correct, but is not the real one" |
+| Unrecognized parameters | Shape-preserving substitution of the observed value | The "different keyword" fallback, without guessing at meaning |
+| Rules storage | Bundled in this repository | No external database, no update channel, no network requests |
+| Redirectors | Unwrap, then substitute the destination | Skips the logging hop and poisons the arrival |
+| Entry mechanism | Navigation interception — **reverses v1.0 non-goal N1** | Entries arrive from mail clients, native apps and the address bar, not only from web pages |
+| Breakage posture | Conservative; broader never-touch list than v1.0 | A wrong value is acted on; a missing one often falls back to a default |
+| Hard limits | Never move money, never touch auth, never impersonate, never fabricate silently to the user | §11.1 |
+| Platform | Firefox MV3, AMO listed | Firefox retains the needed capabilities |
+| Telemetry | None; zero outbound requests | The premise forbids it |
