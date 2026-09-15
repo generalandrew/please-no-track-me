@@ -40,6 +40,28 @@ someone's data is cheap. A defect in it is not.
 | **Rule data** | Bundled in this repo. No external database, no update service, **zero outbound requests** |
 | **Platform** | Firefox, Manifest V3, to be listed on addons.mozilla.org |
 
+## Engine
+
+```bash
+npm test     # taxonomy validation + coherence assertions, no dependencies
+```
+
+`src/engine/` is pure: no browser APIs, no I/O, the taxonomy passed in as an argument, so
+the same modules run in the extension, in tests and in CI. A visit's entire persona is
+derived from one seed, which makes coherence within a visit free and lets a breakage report
+carry a seed instead of the user's browsing history.
+
+```
+utm_source=nytimes&utm_medium=referral&utm_campaign=spring2019&fbclid=IwAR9xQlmBz3kKpQ7vN2
+                              ↓  seed → channel → source, medium, campaign
+utm_source=pinterest&utm_medium=retargeting&utm_campaign=fall-2026-update&fbclid=ch2GvpFNSvmm1v574Mga
+```
+
+Every persona is checked against an independent re-implementation of GA4's default channel
+group rules: a source/medium pair GA4 does not recognize lands in **Unassigned**, and an
+Unassigned row is the first thing an analyst filters out. Channels are drawn by weight, so
+the population mix looks like real traffic rather than a uniform spread.
+
 ## Hard limits
 
 Written into the schema and the code, not left to judgment:

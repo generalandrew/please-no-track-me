@@ -413,28 +413,40 @@ The taxonomy lives in `data/` in this repository and is versioned with the exten
 | **C4 Unrecognized but tracking-shaped** | anything matching `*_source`, `*_campaign`, `*clid`, `*_id` heuristics | Shape-preserving substitution from the observed value itself (§9.6) |
 | **C5 Never-touch** | `q`, `id`, `token`, `code`, `state`, `redirect_uri`, `sig`, OAuth/OIDC set, affiliate tags | Left exactly as found; their presence suppresses substitution for the whole URL |
 
-### 9.2 Closed vocabularies (C1)
+### 9.2 Closed vocabularies (C1) and the channel model
 
-Each C1 parameter carries a vocabulary of real, commonly-observed values and a class label:
+Vocabularies are organized by **channel**, not by parameter. A channel owns the sources and
+mediums that go together, and the persona draws a channel once per visit; `utm_source` and
+`utm_medium` then draw from that channel rather than independently. This is what makes
+coherence structural instead of a rule somebody has to remember to apply.
+
+Each channel is modelled on a **real GA4 default channel group**, with the rule that defines
+it recorded alongside:
 
 ```jsonc
 {
-  "param": "utm_source",
-  "values": [
-    { "v": "newsletter",   "channel": "email" },
-    { "v": "mailchimp",    "channel": "email" },
-    { "v": "reddit",       "channel": "social" },
-    { "v": "twitter",      "channel": "social" },
-    { "v": "linkedin",     "channel": "social" },
-    { "v": "google",       "channel": "search" },
-    { "v": "bing",         "channel": "search" },
-    { "v": "partner-site", "channel": "referral" }
-  ]
+  "organic_social": {
+    "weight": 14,
+    "ga4": "Organic Social",
+    "$rule": "Source in GA4's social sites list OR medium in (social, social-network, social-media, sm).",
+    "mediums": ["social", "social-network", "social-media", "sm"],
+    "sources": ["facebook", "instagram", "twitter", "reddit", "linkedin", "..."]
+  }
 }
 ```
 
-The `channel` label is what makes coherence possible: values are not drawn independently,
-they are drawn from a channel chosen once per visit.
+**Why model GA4's rules rather than invent vocabularies.** GA4 assigns any source/medium
+pair its rules do not recognize to **Unassigned**, and an Unassigned row is the first thing
+an analyst filters out. An incoherent persona is therefore not merely implausible — it is
+discarded before anyone looks at it, which would make the whole product a no-op with extra
+steps. Values like `utm_medium=newsletter` or `utm_medium=partner` look entirely reasonable
+to a human and land in Unassigned; the earlier draft of this taxonomy contained several.
+`test/ga4-channels.mjs` re-implements the GA4 rules independently of the engine and asserts
+that every generated persona lands in a named channel.
+
+Three GA4 channels are deliberately never generated: **Affiliates** (§11.1 forbids
+fabricating affiliate attribution), **Paid/Organic Shopping** (same reasoning), and
+**Direct** (the absence of attribution, which is what stripping already produces).
 
 ### 9.3 Vendor grammars (C3)
 
@@ -498,6 +510,11 @@ Constraints the persona must satisfy:
 5. **Stability within the visit.** Every URL substituted during a visit uses the same
    persona. A site that receives two different entry stories in one session learns that
    something is fabricating them.
+6. **Plausible channel mix.** Channels are drawn by weight, not uniformly. Real traffic is
+   dominated by organic search, social and email; a population arriving evenly across
+   eleven channels — one ninth of it by SMS — would stand out in any aggregate channel
+   report even though each individual record looked fine. The weights are a coarse
+   judgement rather than a measurement, and the corpus checks only for gross deviation.
 
 The output for one visit might be:
 
@@ -545,7 +562,23 @@ tracking-shaped by name, and never to a C5 name. An unrecognized parameter with 
 unrecognized name is left alone — that is the conservative default, and it is the common
 case.
 
-### 9.7 Maintaining the taxonomy in-repo
+### 9.7 Sources
+
+The taxonomy is grounded in published platform documentation rather than invented:
+
+- GA4 default channel groups, which define the source/medium pairings that land in a named
+  channel — `support.google.com/analytics/answer/9756891`
+- GA4 campaign URL parameters, for the `utm_*` family including `utm_id`,
+  `utm_source_platform`, `utm_creative_format` and `utm_marketing_tactic` —
+  `support.google.com/analytics/answer/10917952`
+- Matomo's URL parameter reference, for the `mtm_*` family and for the active/passive
+  parameter distinction that underpins the never-touch list — `matomo.org`
+
+Click-identifier *names* are taken from platform documentation and public reference lists.
+Click-identifier *shapes* are not: §9.3's verification policy requires observed samples, and
+no amount of documentation substitutes for them.
+
+### 9.8 Maintaining the taxonomy in-repo
 
 There is no external database, but the quality gates from v1.0 survive as CI in this
 repository, because the taxonomy needs them more than a strip-list did:

@@ -1,82 +1,418 @@
 {
   "$comment": "The registry: every parameter name the extension recognizes as tracking, and which class handles it. See PRODUCT.md §9.1.",
   "version": "2026.09.15",
-
   "params": [
-    { "name": "utm_source",             "class": "C1", "scope": "global" },
-    { "name": "utm_medium",             "class": "C1", "scope": "global" },
-    { "name": "utm_campaign",           "class": "C2", "scope": "global" },
-    { "name": "utm_term",               "class": "C1", "scope": "global" },
-    { "name": "utm_content",            "class": "C1", "scope": "global" },
-    { "name": "utm_id",                 "class": "C2", "scope": "global" },
-    { "name": "utm_source_platform",    "class": "C1", "scope": "global" },
-    { "name": "utm_creative_format",    "class": "C4", "scope": "global" },
-    { "name": "utm_marketing_tactic",   "class": "C4", "scope": "global" },
-
-    { "name": "mtm_source",   "class": "C1", "scope": "global", "alias": "utm_source" },
-    { "name": "mtm_medium",   "class": "C1", "scope": "global", "alias": "utm_medium" },
-    { "name": "mtm_campaign", "class": "C2", "scope": "global", "alias": "utm_campaign" },
-    { "name": "mtm_keyword",  "class": "C1", "scope": "global", "alias": "utm_term" },
-    { "name": "mtm_content",  "class": "C1", "scope": "global", "alias": "utm_content" },
-    { "name": "mtm_cid",      "class": "C4", "scope": "global" },
-    { "name": "pk_source",    "class": "C1", "scope": "global", "alias": "utm_source" },
-    { "name": "pk_medium",    "class": "C1", "scope": "global", "alias": "utm_medium" },
-    { "name": "pk_campaign",  "class": "C2", "scope": "global", "alias": "utm_campaign" },
-    { "name": "pk_keyword",   "class": "C1", "scope": "global", "alias": "utm_term" },
-    { "name": "pk_content",   "class": "C1", "scope": "global", "alias": "utm_content" },
-
-    { "name": "fbclid",    "class": "C3", "scope": "global", "grammar": "fbclid" },
-    { "name": "gclid",     "class": "C3", "scope": "global", "grammar": "gclid" },
-    { "name": "gbraid",    "class": "C3", "scope": "global", "grammar": "gbraid" },
-    { "name": "wbraid",    "class": "C3", "scope": "global", "grammar": "wbraid" },
-    { "name": "dclid",     "class": "C3", "scope": "global", "grammar": "dclid" },
-    { "name": "msclkid",   "class": "C3", "scope": "global", "grammar": "msclkid" },
-    { "name": "ttclid",    "class": "C3", "scope": "global", "grammar": "ttclid" },
-    { "name": "twclid",    "class": "C3", "scope": "global", "grammar": "twclid" },
-    { "name": "igshid",    "class": "C3", "scope": "global", "grammar": "igshid" },
-    { "name": "rdt_cid",   "class": "C3", "scope": "global", "grammar": "rdt_cid" },
-    { "name": "li_fat_id", "class": "C3", "scope": "global", "grammar": "li_fat_id" },
-    { "name": "epik",      "class": "C3", "scope": "global", "grammar": "epik" },
-    { "name": "yclid",     "class": "C3", "scope": "global", "grammar": "yclid" },
-    { "name": "mc_eid",    "class": "C3", "scope": "global", "grammar": "mc_eid" },
-    { "name": "mc_cid",    "class": "C3", "scope": "global", "grammar": "mc_cid" },
-    { "name": "mkt_tok",   "class": "C3", "scope": "global", "grammar": "mkt_tok" },
-    { "name": "_hsenc",    "class": "C3", "scope": "global", "grammar": "_hsenc" },
-    { "name": "_hsmi",     "class": "C3", "scope": "global", "grammar": "_hsmi" },
-    { "name": "vero_id",   "class": "C3", "scope": "global", "grammar": "vero_id" },
-    { "name": "_gl",       "class": "C3", "scope": "global", "grammar": "ga_gl", "risk": "high" },
-
-    { "name": "si",       "class": "C3", "scope": "domains", "grammar": "youtube_si", "domains": ["youtube.com", "youtu.be", "music.youtube.com"] },
-    { "name": "ref",      "class": "C1", "scope": "global" },
-    { "name": "source",   "class": "C1", "scope": "global" },
-    { "name": "platform", "class": "C1", "scope": "global" },
-    { "name": "ncid",     "class": "C4", "scope": "global" },
-    { "name": "cmpid",    "class": "C4", "scope": "global" },
-    { "name": "CMP",      "class": "C4", "scope": "domains", "domains": ["theguardian.com"] },
-    { "name": "smid",     "class": "C4", "scope": "domains", "domains": ["nytimes.com"] },
-    { "name": "at_medium",   "class": "C1", "scope": "domains", "domains": ["bbc.com", "bbc.co.uk"], "alias": "utm_medium" },
-    { "name": "at_campaign", "class": "C2", "scope": "domains", "domains": ["bbc.com", "bbc.co.uk"], "alias": "utm_campaign" },
-    { "name": "_openstat",   "class": "C4", "scope": "global" },
-    { "name": "share_id",    "class": "C4", "scope": "global" },
-    { "name": "referrer",    "class": "C1", "scope": "global", "alias": "source" }
+    {
+      "name": "utm_source",
+      "class": "C1",
+      "scope": "global"
+    },
+    {
+      "name": "utm_medium",
+      "class": "C1",
+      "scope": "global"
+    },
+    {
+      "name": "utm_campaign",
+      "class": "C2",
+      "scope": "global"
+    },
+    {
+      "name": "utm_term",
+      "class": "C1",
+      "scope": "global"
+    },
+    {
+      "name": "utm_content",
+      "class": "C1",
+      "scope": "global"
+    },
+    {
+      "name": "utm_id",
+      "class": "C2",
+      "scope": "global"
+    },
+    {
+      "name": "utm_source_platform",
+      "class": "C1",
+      "scope": "global"
+    },
+    {
+      "name": "utm_creative_format",
+      "class": "C4",
+      "scope": "global"
+    },
+    {
+      "name": "utm_marketing_tactic",
+      "class": "C4",
+      "scope": "global"
+    },
+    {
+      "name": "mtm_source",
+      "class": "C1",
+      "scope": "global",
+      "alias": "utm_source"
+    },
+    {
+      "name": "mtm_medium",
+      "class": "C1",
+      "scope": "global",
+      "alias": "utm_medium"
+    },
+    {
+      "name": "mtm_campaign",
+      "class": "C2",
+      "scope": "global",
+      "alias": "utm_campaign"
+    },
+    {
+      "name": "mtm_kwd",
+      "class": "C1",
+      "scope": "global",
+      "alias": "utm_term"
+    },
+    {
+      "name": "mtm_content",
+      "class": "C1",
+      "scope": "global",
+      "alias": "utm_content"
+    },
+    {
+      "name": "mtm_cid",
+      "class": "C4",
+      "scope": "global"
+    },
+    {
+      "name": "pk_source",
+      "class": "C1",
+      "scope": "global",
+      "alias": "utm_source"
+    },
+    {
+      "name": "pk_medium",
+      "class": "C1",
+      "scope": "global",
+      "alias": "utm_medium"
+    },
+    {
+      "name": "pk_campaign",
+      "class": "C2",
+      "scope": "global",
+      "alias": "utm_campaign"
+    },
+    {
+      "name": "pk_keyword",
+      "class": "C1",
+      "scope": "global",
+      "alias": "utm_term"
+    },
+    {
+      "name": "pk_content",
+      "class": "C1",
+      "scope": "global",
+      "alias": "utm_content"
+    },
+    {
+      "name": "fbclid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "fbclid"
+    },
+    {
+      "name": "gclid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "gclid"
+    },
+    {
+      "name": "gbraid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "gbraid"
+    },
+    {
+      "name": "wbraid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "wbraid"
+    },
+    {
+      "name": "dclid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "dclid"
+    },
+    {
+      "name": "msclkid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "msclkid"
+    },
+    {
+      "name": "ttclid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "ttclid"
+    },
+    {
+      "name": "twclid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "twclid"
+    },
+    {
+      "name": "igshid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "igshid"
+    },
+    {
+      "name": "rdt_cid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "rdt_cid"
+    },
+    {
+      "name": "li_fat_id",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "li_fat_id"
+    },
+    {
+      "name": "epik",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "epik"
+    },
+    {
+      "name": "yclid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "yclid"
+    },
+    {
+      "name": "mc_eid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "mc_eid"
+    },
+    {
+      "name": "mc_cid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "mc_cid"
+    },
+    {
+      "name": "mkt_tok",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "mkt_tok"
+    },
+    {
+      "name": "_hsenc",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "_hsenc"
+    },
+    {
+      "name": "_hsmi",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "_hsmi"
+    },
+    {
+      "name": "vero_id",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "vero_id"
+    },
+    {
+      "name": "_gl",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "ga_gl",
+      "risk": "high"
+    },
+    {
+      "name": "si",
+      "class": "C3",
+      "scope": "domains",
+      "grammar": "youtube_si",
+      "domains": [
+        "youtube.com",
+        "youtu.be",
+        "music.youtube.com"
+      ]
+    },
+    {
+      "name": "ref",
+      "class": "C1",
+      "scope": "global"
+    },
+    {
+      "name": "source",
+      "class": "C1",
+      "scope": "global"
+    },
+    {
+      "name": "platform",
+      "class": "C1",
+      "scope": "global"
+    },
+    {
+      "name": "ncid",
+      "class": "C4",
+      "scope": "global"
+    },
+    {
+      "name": "cmpid",
+      "class": "C4",
+      "scope": "global"
+    },
+    {
+      "name": "CMP",
+      "class": "C4",
+      "scope": "domains",
+      "domains": [
+        "theguardian.com"
+      ]
+    },
+    {
+      "name": "smid",
+      "class": "C4",
+      "scope": "domains",
+      "domains": [
+        "nytimes.com"
+      ]
+    },
+    {
+      "name": "at_medium",
+      "class": "C1",
+      "scope": "domains",
+      "domains": [
+        "bbc.com",
+        "bbc.co.uk"
+      ],
+      "alias": "utm_medium"
+    },
+    {
+      "name": "at_campaign",
+      "class": "C2",
+      "scope": "domains",
+      "domains": [
+        "bbc.com",
+        "bbc.co.uk"
+      ],
+      "alias": "utm_campaign"
+    },
+    {
+      "name": "_openstat",
+      "class": "C4",
+      "scope": "global"
+    },
+    {
+      "name": "share_id",
+      "class": "C4",
+      "scope": "global"
+    },
+    {
+      "name": "referrer",
+      "class": "C1",
+      "scope": "global",
+      "alias": "source"
+    },
+    {
+      "name": "mtm_group",
+      "class": "C4",
+      "scope": "global"
+    },
+    {
+      "name": "mtm_placement",
+      "class": "C4",
+      "scope": "global"
+    },
+    {
+      "name": "sccid",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "sccid"
+    },
+    {
+      "name": "__hstc",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "__hstc",
+      "risk": "high"
+    },
+    {
+      "name": "__hssc",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "__hssc",
+      "risk": "high"
+    },
+    {
+      "name": "__hsfp",
+      "class": "C3",
+      "scope": "global",
+      "grammar": "__hsfp",
+      "risk": "high"
+    }
   ],
-
   "shapes": [
-    { "pattern": "utm_*",       "class": "C4", "note": "Unknown members of the utm family." },
-    { "pattern": "mtm_*",       "class": "C4" },
-    { "pattern": "pk_*",        "class": "C4" },
-    { "pattern": "hsa_*",       "class": "C4", "note": "HubSpot ads fields." },
-    { "pattern": "*clid",       "class": "C4", "note": "The click-id naming convention." },
-    { "pattern": "*_campaign",  "class": "C4" },
-    { "pattern": "*_medium",    "class": "C4" },
-    { "pattern": "*_term",      "class": "C4" },
-    { "pattern": "*_content",   "class": "C4" }
+    {
+      "pattern": "utm_*",
+      "class": "C4",
+      "note": "Unknown members of the utm family."
+    },
+    {
+      "pattern": "mtm_*",
+      "class": "C4"
+    },
+    {
+      "pattern": "pk_*",
+      "class": "C4"
+    },
+    {
+      "pattern": "hsa_*",
+      "class": "C4",
+      "note": "HubSpot ads fields."
+    },
+    {
+      "pattern": "*clid",
+      "class": "C4",
+      "note": "The click-id naming convention."
+    },
+    {
+      "pattern": "*_campaign",
+      "class": "C4"
+    },
+    {
+      "pattern": "*_medium",
+      "class": "C4"
+    },
+    {
+      "pattern": "*_term",
+      "class": "C4"
+    },
+    {
+      "pattern": "*_content",
+      "class": "C4"
+    }
   ],
-
   "$shapesPolicy": {
-    "rejected": ["*_id", "*_source", "*cid", "*_ref"],
+    "rejected": [
+      "*_id",
+      "*_source",
+      "*cid",
+      "*_ref"
+    ],
     "reason": "Too broad to be safe. '*_id' and '*cid' collide with primary keys and session identifiers on ordinary sites; '*_source' collides with real query fields such as data_source and image_source. A false positive here substitutes a value the site will act on, which PRODUCT.md §6 principle 3 ranks as the more expensive error. These stay out until a specific named parameter earns an entry in params[]."
   },
-
-  "$note": "A shape match alone never triggers substitution on an unrecognized name whose value is not itself tracking-shaped; see the C4 rules in PRODUCT.md §9.6."
+  "$note": "A shape match alone never triggers substitution on an unrecognized name whose value is not itself tracking-shaped; see the C4 rules in PRODUCT.md §9.6.",
+  "$sources": [
+    "GA4 default channel groups: https://support.google.com/analytics/answer/9756891",
+    "GA4 campaign URL parameters: https://support.google.com/analytics/answer/10917952",
+    "Matomo URL parameter playbook (mtm_* names): https://matomo.org/blog/2025/11/url-parameter/"
+  ]
 }

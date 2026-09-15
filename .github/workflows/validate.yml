@@ -16,3 +16,4 @@ jobs:
       # No install step: tools/validate.mjs is dependency-free by design, so a fresh
       # clone can check the taxonomy with nothing but node.
       - run: node tools/validate.mjs
+      - run: node test/coherence/run.mjs

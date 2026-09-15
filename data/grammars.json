@@ -1,60 +1,298 @@
 {
   "$comment": "C3 vendor token grammars. See PRODUCT.md §9.3. READ THE POLICY BLOCK BEFORE ADDING ANYTHING HERE.",
   "version": "2026.09.15",
-
   "policy": {
     "minSamplesToVerify": 30,
     "unverifiedBehavior": "fallback-to-C4",
-    "statuses": ["hypothesis", "verified"],
+    "statuses": [
+      "hypothesis",
+      "verified"
+    ],
     "$rule": "A grammar may only carry status 'verified' — and may only carry an 'emit' block, which is the only thing the substitution engine reads — once at least 30 real values have been observed and recorded with the date observed. Until then its status is 'hypothesis', it emits nothing, and the parameter degrades to C4 shape-preserving substitution derived from the value actually present in the URL.",
     "$why": "A generated token of the wrong shape is worse than no substitution at all: it can fail ingest validation, which both breaks the effect and flags the traffic as synthetic. Guessing a vendor's format from memory is exactly the failure this policy exists to prevent.",
     "$reverification": "Verified grammars expire 180 days after their verification date and revert to hypothesis. Ad platforms change token formats without notice."
   },
-
   "alphabets": {
-    "hex-lower":  "0123456789abcdef",
-    "hex-upper":  "0123456789ABCDEF",
-    "base64url":  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",
-    "alnum":      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-    "digits":     "0123456789"
+    "hex-lower": "0123456789abcdef",
+    "hex-upper": "0123456789ABCDEF",
+    "base64url": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",
+    "alnum": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+    "digits": "0123456789"
   },
-
   "grammars": {
     "fbclid": {
-      "vendor": "meta", "channels": ["social"],
-      "status": "hypothesis", "samples": 0, "verified": null,
-      "hypothesis": { "structure": "structural prefix followed by a long opaque body", "alphabetGuess": "base64url", "note": "At least two generations of this format are believed to exist; both must be characterized before this ships." },
+      "vendor": "meta",
+      "channels": [
+        "organic_social",
+        "paid_social"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "hypothesis": {
+        "structure": "structural prefix followed by a long opaque body",
+        "alphabetGuess": "base64url",
+        "note": "At least two generations of this format are believed to exist; both must be characterized before this ships."
+      },
       "needs": "≥30 values captured from current Facebook and Instagram link shims, dated, covering every prefix form seen."
     },
     "gclid": {
-      "vendor": "google-ads", "channels": ["search", "display"],
-      "status": "hypothesis", "samples": 0, "verified": null,
-      "hypothesis": { "structure": "long opaque token, wide length range", "alphabetGuess": "base64url" },
+      "vendor": "google-ads",
+      "channels": [
+        "paid_search",
+        "display"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "hypothesis": {
+        "structure": "long opaque token, wide length range",
+        "alphabetGuess": "base64url"
+      },
       "needs": "≥30 values from search and display placements; length distribution, not just a single length."
     },
-    "gbraid": { "vendor": "google-ads", "channels": ["search", "display"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values; app-to-web variant." },
-    "wbraid": { "vendor": "google-ads", "channels": ["search", "display"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values; web-to-app variant." },
-    "dclid":  { "vendor": "google-display", "channels": ["display"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values." },
+    "gbraid": {
+      "vendor": "google-ads",
+      "channels": [
+        "paid_search",
+        "display"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values; app-to-web variant."
+    },
+    "wbraid": {
+      "vendor": "google-ads",
+      "channels": [
+        "paid_search",
+        "display"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values; web-to-app variant."
+    },
+    "dclid": {
+      "vendor": "google-display",
+      "channels": [
+        "display"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values."
+    },
     "msclkid": {
-      "vendor": "microsoft-ads", "channels": ["search"],
-      "status": "hypothesis", "samples": 0, "verified": null,
-      "hypothesis": { "structure": "fixed-length lowercase hexadecimal", "alphabetGuess": "hex-lower" },
+      "vendor": "microsoft-ads",
+      "channels": [
+        "paid_search"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "hypothesis": {
+        "structure": "fixed-length lowercase hexadecimal",
+        "alphabetGuess": "hex-lower"
+      },
       "needs": "≥30 values to confirm the length is genuinely fixed rather than merely common."
     },
-    "ttclid":  { "vendor": "tiktok", "channels": ["social"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values." },
-    "twclid":  { "vendor": "x", "channels": ["social"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values." },
-    "igshid":  { "vendor": "meta", "channels": ["social"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values from Instagram share sheets." },
-    "rdt_cid": { "vendor": "reddit", "channels": ["social"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values." },
-    "li_fat_id": { "vendor": "linkedin", "channels": ["social"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values." },
-    "epik":    { "vendor": "pinterest", "channels": ["social"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values." },
-    "yclid":   { "vendor": "yandex", "channels": ["search"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values." },
-    "mc_eid":  { "vendor": "mailchimp", "channels": ["email"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values; per-recipient field." },
-    "mc_cid":  { "vendor": "mailchimp", "channels": ["email"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values; per-campaign field." },
-    "mkt_tok": { "vendor": "marketo", "channels": ["email"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values." },
-    "_hsenc":  { "vendor": "hubspot", "channels": ["email"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values." },
-    "_hsmi":   { "vendor": "hubspot", "channels": ["email"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values." },
-    "vero_id": { "vendor": "vero", "channels": ["email"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values." },
-    "youtube_si": { "vendor": "youtube", "channels": ["video", "social"], "status": "hypothesis", "samples": 0, "verified": null, "needs": "≥30 values from YouTube share sheets." },
-    "ga_gl":   { "vendor": "google-analytics", "channels": ["referral"], "status": "hypothesis", "samples": 0, "verified": null, "hypothesis": { "structure": "cross-domain linker payload, believed to carry an integrity component" }, "needs": "≥30 values. Treat as high risk: if the linker value is validated, a malformed one may be rejected rather than merely logged." }
+    "ttclid": {
+      "vendor": "tiktok",
+      "channels": [
+        "paid_social"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values."
+    },
+    "twclid": {
+      "vendor": "x",
+      "channels": [
+        "paid_social"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values."
+    },
+    "igshid": {
+      "vendor": "meta",
+      "channels": [
+        "organic_social"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values from Instagram share sheets."
+    },
+    "rdt_cid": {
+      "vendor": "reddit",
+      "channels": [
+        "paid_social"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values."
+    },
+    "li_fat_id": {
+      "vendor": "linkedin",
+      "channels": [
+        "paid_social"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values."
+    },
+    "epik": {
+      "vendor": "pinterest",
+      "channels": [
+        "paid_social"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values."
+    },
+    "yclid": {
+      "vendor": "yandex",
+      "channels": [
+        "paid_search"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values."
+    },
+    "mc_eid": {
+      "vendor": "mailchimp",
+      "channels": [
+        "email"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values; per-recipient field."
+    },
+    "mc_cid": {
+      "vendor": "mailchimp",
+      "channels": [
+        "email"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values; per-campaign field."
+    },
+    "mkt_tok": {
+      "vendor": "marketo",
+      "channels": [
+        "email"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values."
+    },
+    "_hsenc": {
+      "vendor": "hubspot",
+      "channels": [
+        "email"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values."
+    },
+    "_hsmi": {
+      "vendor": "hubspot",
+      "channels": [
+        "email"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values."
+    },
+    "vero_id": {
+      "vendor": "vero",
+      "channels": [
+        "email"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values."
+    },
+    "youtube_si": {
+      "vendor": "youtube",
+      "channels": [
+        "organic_video",
+        "organic_social"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values from YouTube share sheets."
+    },
+    "ga_gl": {
+      "vendor": "google-analytics",
+      "channels": [
+        "referral"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "hypothesis": {
+        "structure": "cross-domain linker payload, believed to carry an integrity component"
+      },
+      "needs": "≥30 values. Treat as high risk: if the linker value is validated, a malformed one may be rejected rather than merely logged."
+    },
+    "sccid": {
+      "vendor": "snapchat",
+      "channels": [
+        "paid_social"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values from Snapchat ad placements."
+    },
+    "__hstc": {
+      "vendor": "hubspot",
+      "channels": [
+        "email",
+        "referral"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values. Note this is a cookie-mirroring field, not a click id; confirm it is safe to substitute before promoting."
+    },
+    "__hssc": {
+      "vendor": "hubspot",
+      "channels": [
+        "email",
+        "referral"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values. Note this is a cookie-mirroring field, not a click id; confirm it is safe to substitute before promoting."
+    },
+    "__hsfp": {
+      "vendor": "hubspot",
+      "channels": [
+        "email",
+        "referral"
+      ],
+      "status": "hypothesis",
+      "samples": 0,
+      "verified": null,
+      "needs": "≥30 values. Note this is a cookie-mirroring field, not a click id; confirm it is safe to substitute before promoting."
+    }
   }
 }

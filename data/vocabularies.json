@@ -1,97 +1,104 @@
 {
   "$comment": "C1 closed vocabularies and the channel model. See PRODUCT.md §9.2 and §9.4.",
-  "version": "2026.09.15",
+  "version": "2026.09.16",
 
-  "channels": {
-    "email": {
-      "mediums": ["email", "newsletter", "e-mail"],
-      "note": "Mail clients and marketing platforms."
-    },
-    "social": {
-      "mediums": ["social", "social-organic", "paid-social", "social-media"],
-      "note": "Organic and paid placement on social platforms."
-    },
-    "search": {
-      "mediums": ["cpc", "ppc", "paid-search", "organic"],
-      "note": "Search engines, paid and organic."
-    },
-    "display": {
-      "mediums": ["display", "banner", "cpm", "retargeting", "native"],
-      "note": "Display and native advertising networks."
-    },
-    "referral": {
-      "mediums": ["referral", "link", "partner", "content"],
-      "note": "Editorial and non-commercial links from other sites."
-    },
-    "video": {
-      "mediums": ["video", "video-ad"],
-      "note": "Video platforms."
-    },
-    "push": {
-      "mediums": ["push", "notification", "web-push"],
-      "note": "Browser and app push notifications."
-    },
-    "sms": {
-      "mediums": ["sms", "mms", "text"],
-      "note": "Messaging."
+  "$grounding": {
+    "source": "Google Analytics 4 default channel group rules (support.google.com/analytics/answer/9756891), read 2026-09-15.",
+    "weights": "Channels are drawn by weight, not uniformly. A uniform draw across eleven channels is itself a tell: real traffic is dominated by organic search, social and email, and a population of visitors arriving evenly from SMS, push and display would stand out in any aggregate channel report. The weights below are a plausible mix, not a measurement — they are deliberately coarse, and they are checked by test/coherence/run.mjs only for gross deviation.",
+    "why": "A fabricated persona has to land in a NAMED channel. GA4 assigns any source/medium pair its rules do not recognize to 'Unassigned', and an Unassigned row is the first thing an analyst filters out — so an incoherent persona is not merely implausible, it is discarded before anyone looks at it. Every channel below is therefore modelled on a real GA4 channel group, and test/ga4-channels.mjs re-implements those rules as an oracle so the property is checked rather than asserted.",
+    "excluded": {
+      "Affiliates": "GA4 assigns medium 'affiliate' to the Affiliates channel. Never emitted: PRODUCT.md §11.1 constraint 1 forbids fabricating affiliate attribution.",
+      "Paid Shopping / Organic Shopping": "Both key off shopping-campaign patterns tied to commercial outcomes. Out of scope for the same reason.",
+      "Direct": "Source '(direct)' with medium '(none)' is the absence of attribution, which is what stripping already produces. Nothing to fabricate."
     }
   },
 
-  "$channelPolicy": {
-    "excluded": ["affiliate"],
-    "reason": "An affiliate channel would require fabricating affiliate or partner identifiers. PRODUCT.md §11.1 prohibits it absolutely: substituting one affiliate's tag for another's redirects a commission. No persona may ever be drawn from a commercial channel."
+  "channels": {
+    "email": {
+      "weight": 12,
+      "ga4": "Email",
+      "$rule": "Source or medium matches email|e-mail|e_mail|e mail.",
+      "mediums": ["email", "e-mail", "e_mail"],
+      "sources": ["newsletter", "mailchimp", "substack", "hubspot", "klaviyo", "sendgrid", "campaign-monitor", "braze"]
+    },
+    "organic_social": {
+      "weight": 14,
+      "ga4": "Organic Social",
+      "$rule": "Source in GA4's social sites list OR medium in (social, social-network, social-media, sm).",
+      "mediums": ["social", "social-network", "social-media", "sm"],
+      "sources": ["facebook", "instagram", "twitter", "reddit", "linkedin", "pinterest", "tiktok", "mastodon", "bluesky", "threads"]
+    },
+    "paid_social": {
+      "weight": 8,
+      "ga4": "Paid Social",
+      "$rule": "Source in GA4's social sites list AND medium matches ^(.*cp.*|ppc|retargeting|paid.*)$. Sources here are restricted to platforms on that list — a source GA4 does not recognise as social would fall through to Paid Other.",
+      "mediums": ["paid-social", "cpc", "ppc", "retargeting"],
+      "sources": ["facebook", "instagram", "twitter", "linkedin", "pinterest", "tiktok", "reddit"]
+    },
+    "organic_search": {
+      "weight": 26,
+      "ga4": "Organic Search",
+      "$rule": "Source in GA4's search sites list OR medium exactly 'organic'.",
+      "mediums": ["organic"],
+      "sources": ["google", "bing", "duckduckgo", "yahoo", "ecosia", "brave"]
+    },
+    "paid_search": {
+      "weight": 9,
+      "ga4": "Paid Search",
+      "$rule": "Source in GA4's search sites list AND medium matches ^(.*cp.*|ppc|retargeting|paid.*)$.",
+      "mediums": ["cpc", "ppc", "paid-search", "retargeting"],
+      "sources": ["google", "bing", "yahoo"]
+    },
+    "display": {
+      "weight": 6,
+      "ga4": "Display",
+      "$rule": "Medium in (display, banner, expandable, interstitial, cpm).",
+      "mediums": ["display", "banner", "expandable", "interstitial", "cpm"],
+      "sources": ["google-display", "taboola", "outbrain", "criteo", "adroll", "dv360"]
+    },
+    "referral": {
+      "weight": 13,
+      "ga4": "Referral",
+      "$rule": "Medium in (referral, app, link).",
+      "mediums": ["referral", "app", "link"],
+      "sources": ["partner-site", "blog", "forum", "medium", "news-site", "wiki"]
+    },
+    "organic_video": {
+      "weight": 5,
+      "ga4": "Organic Video",
+      "$rule": "Source in GA4's video sites list OR medium matches .*video.*",
+      "mediums": ["video", "organic-video"],
+      "sources": ["youtube", "vimeo", "twitch", "dailymotion"]
+    },
+    "push": {
+      "weight": 2,
+      "ga4": "Mobile Push Notifications",
+      "$rule": "Medium ends with 'push', or contains 'notification' or 'mobile'; or source is exactly 'firebase'.",
+      "mediums": ["push", "web-push", "notification"],
+      "sources": ["firebase", "onesignal", "braze"]
+    },
+    "sms": {
+      "weight": 2,
+      "ga4": "SMS",
+      "$rule": "Source or medium exactly 'sms'.",
+      "mediums": ["sms"],
+      "sources": ["sms", "twilio"]
+    },
+    "ai_assistant": {
+      "weight": 3,
+      "ga4": "AI Assistant",
+      "$rule": "Medium exactly 'ai-assistant'.",
+      "mediums": ["ai-assistant"],
+      "sources": ["chatgpt", "perplexity", "gemini", "copilot"]
+    }
   },
 
   "params": {
-    "utm_source": {
-      "class": "C1",
-      "values": [
-        { "v": "newsletter", "channel": "email" },
-        { "v": "mailchimp", "channel": "email" },
-        { "v": "substack", "channel": "email" },
-        { "v": "hubspot", "channel": "email" },
-        { "v": "klaviyo", "channel": "email" },
-        { "v": "sendgrid", "channel": "email" },
-        { "v": "campaign-monitor", "channel": "email" },
-        { "v": "facebook", "channel": "social" },
-        { "v": "instagram", "channel": "social" },
-        { "v": "twitter", "channel": "social" },
-        { "v": "reddit", "channel": "social" },
-        { "v": "linkedin", "channel": "social" },
-        { "v": "mastodon", "channel": "social" },
-        { "v": "bluesky", "channel": "social" },
-        { "v": "pinterest", "channel": "social" },
-        { "v": "tiktok", "channel": "social" },
-        { "v": "google", "channel": "search" },
-        { "v": "bing", "channel": "search" },
-        { "v": "duckduckgo", "channel": "search" },
-        { "v": "ecosia", "channel": "search" },
-        { "v": "yahoo", "channel": "search" },
-        { "v": "google-display", "channel": "display" },
-        { "v": "taboola", "channel": "display" },
-        { "v": "outbrain", "channel": "display" },
-        { "v": "criteo", "channel": "display" },
-        { "v": "adroll", "channel": "display" },
-        { "v": "partner-site", "channel": "referral" },
-        { "v": "blog", "channel": "referral" },
-        { "v": "forum", "channel": "referral" },
-        { "v": "medium", "channel": "referral" },
-        { "v": "news-site", "channel": "referral" },
-        { "v": "youtube", "channel": "video" },
-        { "v": "vimeo", "channel": "video" },
-        { "v": "twitch", "channel": "video" },
-        { "v": "onesignal", "channel": "push" },
-        { "v": "webpush", "channel": "push" },
-        { "v": "sms", "channel": "sms" },
-        { "v": "twilio", "channel": "sms" }
-      ]
-    },
-
-    "utm_medium": {
-      "class": "C1",
-      "from": "channel.mediums",
-      "$note": "Not an independent vocabulary. The medium is drawn from the mediums of the channel already chosen for the visit, which is what enforces PRODUCT.md §9.4 constraint 1."
-    },
+    "utm_source":   { "class": "C1", "from": "channel.sources" },
+    "utm_medium":   { "class": "C1", "from": "channel.mediums" },
+    "ref":          { "class": "C1", "from": "channel.sources" },
+    "source":       { "class": "C1", "from": "channel.sources" },
+    "referrer":     { "class": "C1", "from": "channel.sources" },
 
     "utm_content": {
       "class": "C1",
@@ -103,19 +110,16 @@
         { "v": "variant-a" }, { "v": "variant-b" }
       ]
     },
-
     "utm_term": {
       "class": "C1",
-      "channels": ["search", "display"],
-      "$note": "The paid keyword field. Emitting it outside a paid channel is a tell, so the engine omits it unless the incoming URL carried it.",
+      "channels": ["paid_search", "display"],
+      "$note": "The paid keyword field. Emitting it outside a paid channel is a tell, so the engine omits it unless the incoming URL carried it — and if it did, the channel is already constrained toward paid.",
       "values": [
         { "v": "privacy-tools" }, { "v": "browser-extensions" }, { "v": "how-to-guide" },
         { "v": "best-practices" }, { "v": "getting-started" }, { "v": "comparison" },
-        { "v": "free-trial" }, { "v": "pricing" }, { "v": "alternatives" },
-        { "v": "reviews" }
+        { "v": "free-trial" }, { "v": "pricing" }, { "v": "alternatives" }, { "v": "reviews" }
       ]
     },
-
     "utm_source_platform": {
       "class": "C1",
       "channelAgnostic": true,
@@ -124,43 +128,12 @@
         { "v": "dv360" }, { "v": "manual" }
       ]
     },
-
-    "ref": {
-      "class": "C1",
-      "values": [
-        { "v": "newsletter", "channel": "email" },
-        { "v": "digest", "channel": "email" },
-        { "v": "social", "channel": "social" },
-        { "v": "reddit", "channel": "social" },
-        { "v": "hn", "channel": "referral" },
-        { "v": "blog", "channel": "referral" },
-        { "v": "partner", "channel": "referral" },
-        { "v": "search", "channel": "search" },
-        { "v": "homepage", "channel": "referral" },
-        { "v": "related", "channel": "referral" }
-      ],
-      "$warning": "ref is also a common affiliate field. Any ref value matching the commerce patterns in never-touch.json suppresses substitution for the whole URL."
-    },
-
-    "source": {
-      "class": "C1",
-      "values": [
-        { "v": "newsletter", "channel": "email" },
-        { "v": "email", "channel": "email" },
-        { "v": "social", "channel": "social" },
-        { "v": "twitter", "channel": "social" },
-        { "v": "search", "channel": "search" },
-        { "v": "partner", "channel": "referral" },
-        { "v": "direct", "channel": "referral" }
-      ]
-    },
-
     "platform": {
       "class": "C1",
       "channelAgnostic": true,
-      "values": [
-        { "v": "web" }, { "v": "mobile-web" }, { "v": "desktop" }
-      ]
+      "values": [{ "v": "web" }, { "v": "mobile-web" }, { "v": "desktop" }]
     }
-  }
+  },
+
+  "$refWarning": "ref and source are also common affiliate fields. Values matching the commerce group in never-touch.json suppress substitution for the whole URL before any of this is consulted."
 }

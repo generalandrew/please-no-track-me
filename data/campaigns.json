@@ -11,12 +11,12 @@
   },
 
   "templates": [
-    { "id": "season-year-theme",      "pattern": "{season}{sep}{year}{sep}{theme}",        "channels": ["email", "social", "display", "referral"] },
-    { "id": "theme-audience",         "pattern": "{theme}{sep}{audience}",                 "channels": ["email", "social", "push"] },
-    { "id": "quarter-year-objective", "pattern": "{quarter}{sep}{year}{sep}{objective}",   "channels": ["display", "search"] },
-    { "id": "objective-geo-quarter",  "pattern": "{objective}{sep}{geo}{sep}{quarter}",    "channels": ["search", "display"] },
+    { "id": "season-year-theme",      "pattern": "{season}{sep}{year}{sep}{theme}",        "channels": ["email", "organic_social", "paid_social", "display", "referral", "ai_assistant"] },
+    { "id": "theme-audience",         "pattern": "{theme}{sep}{audience}",                 "channels": ["email", "organic_social", "push"] },
+    { "id": "quarter-year-objective", "pattern": "{quarter}{sep}{year}{sep}{objective}",   "channels": ["display", "paid_search", "organic_search"] },
+    { "id": "objective-geo-quarter",  "pattern": "{objective}{sep}{geo}{sep}{quarter}",    "channels": ["paid_search", "display"] },
     { "id": "month-year-theme",       "pattern": "{month}{year}{sep}{theme}",              "channels": ["email", "sms"] },
-    { "id": "product-theme",          "pattern": "{product}{sep}{theme}",                  "channels": ["email", "referral", "video"] }
+    { "id": "product-theme",          "pattern": "{product}{sep}{theme}",                  "channels": ["email", "referral", "organic_video", "organic_search"] }
   ],
 
   "slots": {

@@ -42,16 +42,22 @@ for (const [name, ch] of Object.entries(vocab.channels ?? {})) {
   if (!Array.isArray(ch.mediums) || ch.mediums.length === 0)
     err('vocabularies.json', `channel "${name}" has no mediums; §9.4 draws the medium from the channel`);
 }
-const sourceChannels = new Set(
-  (vocab.params?.utm_source?.values ?? []).map((v) => v.channel)
-);
-for (const c of channels) {
-  if (!sourceChannels.has(c))
-    err('vocabularies.json', `channel "${c}" has no utm_source value, so a persona in that channel cannot name a source`);
-}
-for (const c of sourceChannels) {
-  if (!channelSet.has(c))
-    err('vocabularies.json', `utm_source references undefined channel "${c}"`);
+const URL_SAFE_EARLY = /^[A-Za-z0-9._~-]+$/;
+for (const [name, ch] of Object.entries(vocab.channels ?? {})) {
+  if (!ch.ga4) err('vocabularies.json', `channel "${name}" names no GA4 channel group; §9.4 plausibility depends on landing in a named one`);
+  if (!ch.$rule) err('vocabularies.json', `channel "${name}" records no GA4 rule, so nobody can check it against the source`);
+  if (!Number.isFinite(ch.weight) || ch.weight <= 0)
+    err('vocabularies.json', `channel "${name}" has no positive weight; an unweighted draw makes the channel mix itself implausible`);
+  if (!Array.isArray(ch.sources) || ch.sources.length < 2)
+    err('vocabularies.json', `channel "${name}" needs at least two sources, or substitution cannot pick a different one`);
+  for (const list of ['sources', 'mediums']) {
+    const seen = new Set();
+    for (const v of ch[list] ?? []) {
+      if (!URL_SAFE_EARLY.test(v)) err('vocabularies.json', `channel "${name}" ${list} value "${v}" needs percent-encoding`);
+      if (seen.has(v)) err('vocabularies.json', `channel "${name}" has duplicate ${list} value "${v}"`);
+      seen.add(v);
+    }
+  }
 }
 
 // PRODUCT.md §11.1: no commercial channel may exist.
@@ -63,8 +69,13 @@ for (const c of channels) {
 // ------------------------------------------------------- vocabulary values
 
 const URL_SAFE = /^[A-Za-z0-9._~-]+$/;
+const FROM_TARGETS = new Set(['channel.sources', 'channel.mediums']);
 for (const [param, spec] of Object.entries(vocab.params ?? {})) {
-  if (spec.from) continue;
+  if (spec.from) {
+    if (!FROM_TARGETS.has(spec.from))
+      err('vocabularies.json', `"${param}" draws from unknown target "${spec.from}"`);
+    continue;
+  }
   if (!Array.isArray(spec.values) || spec.values.length < 2) {
     err('vocabularies.json', `"${param}" needs at least two values, or substitution cannot pick a different one`);
     continue;
